@@ -260,9 +260,6 @@ else:
     print(f"Keine DAten mit EE-Anteil zwischen {lower_threshold * 100}% und {upper_threshold * 100}%.")
 
 
-import streamlit as st
-import matplotlib.pyplot as plt
-
 if input_date:
     selected_date = datetime.datetime.strptime(str(input_date), "%Y-%m-%d").date()
 
