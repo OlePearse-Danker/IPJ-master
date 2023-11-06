@@ -432,27 +432,27 @@ df_i['Ende'] = pd.to_datetime(df_i['Ende'], format='%H:%M')
 # df_i['Sonstige Konventionelle [MW] Berechnete Auflösungen'] = df_i['Sonstige Konventionelle [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
 
 
-df_p.reset_index(inplace=True)
+#df_p.reset_index(inplace=True)
 
-counter = 0
-comparison_df = pd.DataFrame()
-comparison_df['Datum'] = df_p['Datum']
+# counter = 0
+# comparison_df = pd.DataFrame()
+# comparison_df['Datum'] = df_p['Datum']
 
-pv_wind_installed_sum = ['Wind Offshore [MW] Berechnete Auflösungen', 'Wind Offshore [MW] Berechnete Auflösungen', 'Photovoltaik [MW] Berechnete Auflösungen']
-df_i['Pv and Wind installed Power [MWh]'] = df_i[pv_wind_installed_sum].sum(axis=1)
+# pv_wind_installed_sum = ['Wind Offshore [MW] Berechnete Auflösungen', 'Wind Offshore [MW] Berechnete Auflösungen', 'Photovoltaik [MW] Berechnete Auflösungen']
+# df_i['Pv and Wind installed Power [MWh]'] = df_i[pv_wind_installed_sum].sum(axis=1)
 
 # calculating the minimum power production of 2% to not have a "Dunkelflaute"
-comparison_df['threshhold pv and wind[MWh]'] = df_i['Pv and Wind installed Power [MWh]'] * 0.2
+# c# omparison_df['threshhold pv and wind[MWh]'] = df_i['Pv and Wind installed Power [MWh]'] * 0.2
 
 
-pv_wind_production_sum = ['Photovoltaik [MWh] Originalauflösungen'] + ['Wind Offshore [MWh] Originalauflösungen'] + ['Wind Onshore [MWh] Originalauflösungen']
-comparison_df['Pv and Wind Prodcution Power [MWh]'] = df_p[pv_wind_production_sum].sum(axis=1)
+# pv_wind_production_sum = ['Photovoltaik [MWh] Originalauflösungen'] + ['Wind Offshore [MWh] Originalauflösungen'] + ['Wind Onshore [MWh] Originalauflösungen']
+# comparison_df['Pv and Wind Prodcution Power [MWh]'] = df_p[pv_wind_production_sum].sum(axis=1)
 
 # Collect dates where production is less than the threshold
-less_than_threshold_dates = comparison_df[comparison_df['Pv and Wind Prodcution Power [MWh]'] < comparison_df['threshhold pv and wind[MWh]']]['Datum']
+# less_than_threshold_dates = comparison_df[comparison_df['Pv and Wind Prodcution Power [MWh]'] < comparison_df['threshhold pv and wind[MWh]']]['Datum']
 
 # Increment the counter for each date
-counter += len(less_than_threshold_dates)
+# counter += len(less_than_threshold_dates)
 
 # Store the dates in a new column in comparison_df
 # comparison_df['Dates Less than Threshold'] = less_than_threshold_dates
@@ -461,7 +461,7 @@ counter += len(less_than_threshold_dates)
 # print(comparison_df[['Datum', 'Pv and Wind Prodcution Power [MWh]', 'threshhold pv and wind[MWh]', 'Dates Less than Threshold']])
 
 # Print the counter
-print("Number of dates with production less than the threshold:", counter)
+# print("Number of dates with production less than the threshold:", counter)
 
 endzeit = time.time()
 dauer = endzeit - startzeit
