@@ -83,10 +83,6 @@ with open(csv_datei1, 'r') as file:
         energie_daten.append(datensatz)
 
 
-# reading in the data as a dataframe
-
-
-
 with open(csv_datei2, 'r') as file:
     csv_reader = csv.reader(file, delimiter=';')
     next(csv_reader)
@@ -118,62 +114,154 @@ hours = [parse_datetime(datensatz['Datum'], datensatz['Anfang']).hour + parse_da
 production_day = [datensatz['Biomasse [MWh]'] + datensatz['Wasserkraft [MWh]'] + datensatz['Wind Offshore [MWh]'] + datensatz['Wind Onshore [MWh]'] + datensatz['Photovoltaik [MWh]'] + datensatz['Sonstige Erneuerbare [MWh]'] for datensatz in filtered_data]
 consumption_day = [datensatz1['Gesamt (Netzlast) [MWh]'] for datensatz1 in filtered_data2]
 
+
 def range1(array1, array2):
     if len(array1) != len(array2):
         raise ValueError("Arrays must be the same length")
     
-    count10 = 0
-    count20 = 0
-    count30 =0
-    count40 = 0
-    count50 = 0
-    count60 = 0
-    count70 = 0
-    count80 = 0
-    count90 = 0
-    count100 = 0
+    counts = [0] * 100
 
     for val1, val2 in zip(array1, array2):
-        if 0.1 <= val1 / val2 < 0.2:
-            count10 += 1
-        if 0.2 <= val1 / val2 < 0.3:
-            count20 +=1
-        if 0.3 <= val1 / val2 < 0.4:
-            count30 +=1
-        if 0.4 <= val1 / val2 < 0.5:
-            count40 +=1
-        if 0.5 <= val1 / val2 < 0.6:
-            count50 +=1
-        if 0.6 <= val1 / val2 < 0.7:
-            count60 +=1
-        if 0.7 <= val1 / val2 < 0.8:
-            count70 +=1
-        if 0.8 <= val1 / val2 < 0.9:
-            count80 +=1
-        if 0.9 <= val1 / val2 < 1:
-            count90 +=1
-        if  val1 / val2  == 1:
-            count100+=1
+        ratio = val1 / val2
+        percent = int(ratio * 100)
 
-    return [count10, count20, count30, count40, count50, count60, count70, count80, count90, count100]
+        if percent == 100:
+            counts[percent - 1] += 1
+        elif 0 <= percent < 100:
+            counts[percent] += 1
+
+    return counts
 
 counts =[]
 counts = range1(production, consumption)
+print("Anteile in %:")
 print(counts)
-
-
-def animate(i):
-
-    ax1 = plt.subplots(figsize=(12, 6))
-
-    ax1.plot(hours, consumption_day, label='Consumption')
-    ax1.plot(hours, production_day, label='Production (renewable energy)', linewidth=2.5)
- 
-    ax1.set_xlabel('Time [Hour]')
-    ax1.set_ylabel('Power (MWh)')
+print()
 
 
 
+yearly_data = {}
+
+
+for datensatz in energie_daten:
+    datum = datensatz['Datum']
+    year = datetime.datetime.strptime(datum, '%d.%m.%Y').year
+    if year not in yearly_data:
+        yearly_data[year] = {
+            'Production': 0,
+            'Consumption': 0,
+            'Biomasse [MWh]': 0,
+            'Wasserkraft [MWh]': 0,
+            'Wind Offshore [MWh]': 0,
+            'Wind Onshore [MWh]': 0,
+            'Photovoltaik [MWh]': 0,
+            'Sonstige Erneuerbare [MWh]': 0,
+        }
+
+    
+    yearly_data[year]['Production'] += datensatz['Biomasse [MWh]'] + datensatz['Wasserkraft [MWh]'] + datensatz['Wind Offshore [MWh]'] + datensatz['Wind Onshore [MWh]'] + datensatz['Photovoltaik [MWh]'] + datensatz['Sonstige Erneuerbare [MWh]']
+    yearly_data[year]['Biomasse [MWh]'] += datensatz['Biomasse [MWh]']
+    yearly_data[year]['Wasserkraft [MWh]'] += datensatz['Wasserkraft [MWh]']
+    yearly_data[year]['Wind Offshore [MWh]'] += datensatz['Wind Offshore [MWh]']
+    yearly_data[year]['Wind Onshore [MWh]'] += datensatz['Wind Onshore [MWh]']
+    yearly_data[year]['Photovoltaik [MWh]'] += datensatz['Photovoltaik [MWh]']
+    yearly_data[year]['Sonstige Erneuerbare [MWh]'] += datensatz['Sonstige Erneuerbare [MWh]']
+
+
+for datensatz2 in energie_daten2:
+    datum = datensatz2['Datum']
+    year = datetime.datetime.strptime(datum, '%d.%m.%Y').year
+    if year in yearly_data:
+        yearly_data[year]['Consumption'] += datensatz2['Gesamt (Netzlast) [MWh]']
+
+
+for year, data in yearly_data.items():
+    print(f"Year: {year}")
+    print(f"Total Renwable Energy Production: {data['Production']} MWh")
+    print(f"Total Consumption: {data['Consumption']} MWh")
+    print(f"Biomasse: {data['Biomasse [MWh]']} MWh")
+    print(f"Wasserkraft: {data['Wasserkraft [MWh]']} MWh")
+    print(f"Wind Offshore: {data['Wind Offshore [MWh]']} MWh")
+    print(f"Wind Onshore: {data['Wind Onshore [MWh]']} MWh")
+    print(f"Photovoltaik: {data['Photovoltaik [MWh]']} MWh")
+    print(f"Sonstige Erneuerbare: {data['Sonstige Erneuerbare [MWh]']} MWh")
+    print()
+
+
+def find_dates_with_high_ee_ratio(energie_daten, energie_daten2, threshold=0.9):
+    dates_with_high_ratio = set()
+    
+    for datensatz, datensatz1 in zip(energie_daten, energie_daten2):
+        total_consumption = datensatz1['Gesamt (Netzlast) [MWh]']
+        total_production = (
+            datensatz['Biomasse [MWh]'] +
+            datensatz['Wasserkraft [MWh]'] +
+            datensatz['Wind Offshore [MWh]'] +
+            datensatz['Wind Onshore [MWh]'] +
+            datensatz['Photovoltaik [MWh]'] +
+            datensatz['Sonstige Erneuerbare [MWh]']
+        )
+        ratio = total_production / total_consumption
+        
+        if ratio > threshold:
+            date = parse_datetime(datensatz['Datum'], datensatz['Anfang']).date()
+            dates_with_high_ratio.add(date)
+    
+    sorted_dates = sorted(dates_with_high_ratio)  # Сортировка дат от старых к новым
+    
+    return sorted_dates
+
+
+
+
+
+dates_with_high_ee = find_dates_with_high_ee_ratio(energie_daten, energie_daten2)
+
+if dates_with_high_ee:
+    print("Daten mit 90% EE-Anteil:")
+    for date in dates_with_high_ee:
+        print(date)
+else:
+    print("Keine Daten mit 90% EE-Anteil.")
+
+def find_dates_with_ee_ratio(energie_daten, energie_daten2, lower_threshold=0.0, upper_threshold=1.0):
+    dates_with_ee_ratio = set()
+    
+    for datensatz, datensatz1 in zip(energie_daten, energie_daten2):
+        total_consumption = datensatz1['Gesamt (Netzlast) [MWh]']
+        total_production = (
+            datensatz['Biomasse [MWh]'] +
+            datensatz['Wasserkraft [MWh]'] +
+            datensatz['Wind Offshore [MWh]'] +
+            datensatz['Wind Onshore [MWh]'] +
+            datensatz['Photovoltaik [MWh]'] +
+            datensatz['Sonstige Erneuerbare [MWh]']
+        )
+        ratio = total_production / total_consumption
+        
+        if lower_threshold <= ratio <= upper_threshold:
+            date = parse_datetime(datensatz['Datum'], datensatz['Anfang']).date()
+            dates_with_ee_ratio.add(date)
+    
+    sorted_dates = sorted(dates_with_ee_ratio)  # Sortieren von alt zu neu
+    
+    return sorted_dates
+
+lower_threshold = 0.0  
+upper_threshold = 0.2  
+
+dates_with_low_ee = find_dates_with_ee_ratio(energie_daten, energie_daten2, lower_threshold, upper_threshold)
+
+if dates_with_low_ee:
+    print(f"Daten mit EE-Anteil zwischen {lower_threshold * 100}% und {upper_threshold * 100}% :")
+    for date in dates_with_low_ee:
+        print(date)
+else:
+    print(f"Keine DAten mit EE-Anteil zwischen {lower_threshold * 100}% und {upper_threshold * 100}%.")
+
+
+import streamlit as st
+import matplotlib.pyplot as plt
 
 if input_date:
     selected_date = datetime.datetime.strptime(str(input_date), "%Y-%m-%d").date()
@@ -195,35 +283,25 @@ if input_date:
     # plt.tight_layout()
     ax1.grid(True)
     ax1.set_xticks(range(0, 24))
-    
 
-    # Create the figure and axes objects for the second plot
-fig2, ax2 = plt.subplots(figsize=(6, 4))
-
-    # Set the x-tick positions and labels
-x_ticks = range(len(counts))
-x_labels = ['10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%', '100%']
-ax2.set_xticks(x_ticks)
-ax2.set_xticklabels(x_labels)
-
-ax2.bar(x_ticks, counts)
-ax2.set_title('Anzahl der Viertelstunden mit 10-100 % EE-Anteil')
-
-
+# Plot 2
+fig2, ax2 = plt.subplots(figsize=(10, 4))
+x = range(100)
+ax2.bar(range(len(counts)), counts)
+ax2.set_title('Anzahl der Viertelstunden mit 1-100 % EE-Anteil')
+ax2.set_xticks(x[::5])
+ax2.set_xticklabels([f'{i}%' for i in range(0, 100, 5)])
 
 # ... Remaining code omitted for brevity ...
 
 if input_date:
-
-
     st.pyplot(fig1)
-
-
     st.write("##")
     st.write("##")
     st.subheader('Amount of quarter hours with Renewable Energy in Percent')
     st.markdown("---")
     st.pyplot(fig2)
+
 
 
 
