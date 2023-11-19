@@ -217,12 +217,12 @@ def find_dates_with_high_ee_ratio(energie_daten, energie_daten2, threshold=0.9):
 
 dates_with_high_ee = find_dates_with_high_ee_ratio(energie_daten, energie_daten2)
 
-if dates_with_high_ee:
-    print("Daten mit 90% EE-Anteil:")
-    for date in dates_with_high_ee:
-        print(date)
-else:
-    print("Keine Daten mit 90% EE-Anteil.")
+# if dates_with_high_ee:
+  #  print("Daten mit 90% EE-Anteil:")
+   #  for date in dates_with_high_ee:
+        #print(date)
+# else:
+    # print("Keine Daten mit 90% EE-Anteil.")
 
 def find_dates_with_ee_ratio(energie_daten, energie_daten2, lower_threshold=0.0, upper_threshold=1.0):
     dates_with_ee_ratio = set()
@@ -251,6 +251,8 @@ lower_threshold = 0.0
 upper_threshold = 0.2  
 
 dates_with_low_ee = find_dates_with_ee_ratio(energie_daten, energie_daten2, lower_threshold, upper_threshold)
+
+
 
 if dates_with_low_ee:
     print(f"Daten mit EE-Anteil zwischen {lower_threshold * 100}% und {upper_threshold * 100}% :")
