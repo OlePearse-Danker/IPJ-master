@@ -58,6 +58,9 @@ PHOTOVOLTAIC = 'Photovoltaik [MWh] Originalauflösungen'
 OTHER_RENEWABLE = 'Sonstige Erneuerbare [MWh] Originalauflösungen'
 CONSUMPTION = 'Gesamt (Netzlast) [MWh] Originalauflösungen'
 
+# Umrechnungsfaktoren
+M_to_TWh = 1e-6
+
 # Umwandlung von Datumsspalten in DateTime-Objekte
 production_df[DATE] = pd.to_datetime(production_df[DATE], format='%d.%m.%Y')
 production_df[STARTTIME] = pd.to_datetime(production_df[STARTTIME], format='%H:%M')
@@ -224,6 +227,7 @@ year = st.selectbox('Which year would you like to see?', year_options)
 
 # Filter the production_df dataframe for the selected year
 filtered_production_df = production_df[production_df[DATE].dt.year == year]
+filtered_consumption_df = consumption_df[consumption_df[DATE].dt.year == year]
 
 # Compute the total production for each renewable energy type
 total_biomass = filtered_production_df[BIOMAS].sum()
@@ -232,6 +236,10 @@ total_windoff = filtered_production_df[WIND_OFFSHORE].sum()
 total_windon = filtered_production_df[WIND_ONSHORE].sum()
 total_pv = filtered_production_df[PHOTOVOLTAIC].sum()
 total_other_ree = filtered_production_df[OTHER_RENEWABLE].sum()
+
+# Calculate the sum of all the total values for the selected year
+total_ree_sum = total_biomass + total_waterpower + total_windoff + total_windon + total_pv + total_other_ree
+total_consumption_y = filtered_consumption_df[CONSUMPTION].sum()
 
 # Create a bar chart to display the yearly production of renewable energy
 fig_3 = px.bar(x=[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE],
@@ -243,6 +251,40 @@ fig_3.data[0].x = ['biomass', 'hydroelectric', 'wind offshore', 'wind onshore', 
 
 # Display the bar chart using st.plotly_chart
 st.plotly_chart(fig_3)
+
+st.markdown('#### Total Renewable Energy Production and Total Consumption in TWh')
+st.markdown('For the years 2021 to 2022 the values are compared to the previous years')
+
+if year == 2021 or year == 2022:
+
+    filtered_production_df_prev = production_df[production_df[DATE].dt.year == year-1]
+    total_biomass_prev = filtered_production_df_prev[BIOMAS].sum()
+    total_waterpower_prev = filtered_production_df_prev[HYDROELECTRIC].sum()
+    total_windoff_prev = filtered_production_df_prev[WIND_OFFSHORE].sum()
+    total_windon_prev = filtered_production_df_prev[WIND_ONSHORE].sum()
+    total_pv_prev = filtered_production_df_prev[PHOTOVOLTAIC].sum()
+    total_other_ree_prev = filtered_production_df_prev[OTHER_RENEWABLE].sum()
+
+    total_ree_sum_prev = total_biomass_prev + total_waterpower_prev + total_windoff_prev + total_windon_prev + total_pv_prev + total_other_ree_prev
+
+    diff_production = f'{(total_ree_sum - total_ree_sum_prev) * M_to_TWh:.2f}' + ' TWh'
+
+    total_consumption_y_prev = consumption_df[consumption_df[DATE].dt.year == year-1][CONSUMPTION].sum()
+    diff_consumption = f'{(total_consumption_y - total_consumption_y_prev) * M_to_TWh:.2f}' + ' TWh'
+else:
+    diff_production = 0
+    diff_consumption = 0
+
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(label='Total Renewable Energy Production (TWh)', value=f'{total_ree_sum * M_to_TWh:.2f}', delta=diff_production, delta_color='normal')
+
+with col2:
+    st.metric(label='Total Consumption (TWh)', value=f'{total_consumption_y * M_to_TWh:.2f}', delta=diff_consumption, delta_color='normal')
+
+
 
 # ------------------------------------------------
 
