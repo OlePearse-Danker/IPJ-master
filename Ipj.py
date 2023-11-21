@@ -5,8 +5,6 @@ import matplotlib.style as style
 import datetime
 import time
 import streamlit as st
-from matplotlib.animation import FuncAnimation
-import numpy as np
 import plotly.express as px
 
 
@@ -300,7 +298,6 @@ if input_date:
     st.subheader('Amount of quarter hours with Renewable Energy in Percent')
     st.markdown("---")
     st.pyplot(fig2)
-
 
 
 
