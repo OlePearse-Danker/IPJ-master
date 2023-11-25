@@ -65,6 +65,7 @@ CONSUMPTION = 'Gesamt (Netzlast) [MWh] Originalauflösungen'
 
 # Umrechnungsfaktoren
 M_to_TWh = 1e-6
+MWh_to_GWh = 1e-3
 
 # Umwandlung von Datumsspalten in DateTime-Objekte
 production_df[DATE] = pd.to_datetime(production_df[DATE], format='%d.%m.%Y')
@@ -163,7 +164,7 @@ fig_1 = make_subplots()
 fig_1.add_trace(
     go.Scatter(
         x=selected_consumption[STARTTIME].dt.strftime('%H:%M'), 
-        y=selected_consumption[CONSUMPTION],
+        y=selected_consumption[CONSUMPTION] * MWh_to_GWh,
         mode='none',
         name='Total Consumption',
         fill='tozeroy',
@@ -175,7 +176,7 @@ fig_1.add_trace(
 fig_1.add_trace(
     go.Scatter(
         x=selected_production[STARTTIME].dt.strftime('%H:%M'),
-        y=selected_production['Total Production'],
+        y=selected_production['Total Production'] * MWh_to_GWh,
         mode='none',
         name='Total Renewable Production',
         fill='tozeroy',
@@ -187,7 +188,7 @@ fig_1.add_trace(
 fig_1.update_layout(
     title=f'Energy Production and Consumption on {selected_date}',
     xaxis=dict(title='Time (hours)', showgrid=True),
-    yaxis=dict(title='Energy (MWh)', showgrid=True),
+    yaxis=dict(title='Energy (GWh)', showgrid=True, tickformat=".0f"),
     showlegend=True
 )
 
@@ -248,8 +249,8 @@ total_consumption_y = filtered_consumption_df[CONSUMPTION].sum()
 
 # Create a bar chart to display the yearly production of renewable energy
 fig_3 = px.bar(x=[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE],
-             y=[total_biomass, total_waterpower, total_windoff, total_windon, total_pv, total_other_ree],
-             labels={'x': 'Renewable Energy Type', 'y': 'Total Production (MWh)'},
+             y=[total_biomass * MWh_to_GWh, total_waterpower * MWh_to_GWh, total_windoff * MWh_to_GWh, total_windon * MWh_to_GWh, total_pv * MWh_to_GWh, total_other_ree * MWh_to_GWh],
+             labels={'x': 'Renewable Energy Type', 'y': 'Total Production (GWh)'},
              title=f"Yearly Production of Renewable Energy - {year}")
 
 fig_3.data[0].x = ['biomass', 'hydroelectric', 'wind offshore', 'wind onshore', 'photovoltaic', 'other_renewable']

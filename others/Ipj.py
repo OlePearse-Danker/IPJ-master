@@ -484,22 +484,22 @@ df_i['Datum'] = pd.to_datetime(df_i['Datum'], format='%d.%m.%Y')
 df_i['Anfang'] = pd.to_datetime(df_i['Anfang'], format='%H:%M')
 df_i['Ende'] = pd.to_datetime(df_i['Ende'], format='%H:%M')
 
-# df_i['Biomasse [MW] Berechnete Auflösungen'] = df_i['Biomasse [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
-# df_i['Wasserkraft [MW] Berechnete Auflösungen'] = df_i['Wasserkraft [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
-# df_i['Wind Offshore [MW] Berechnete Auflösungen'] = df_i['Wind Offshore [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
-# df_i['Wind Onshore [MW] Berechnete Auflösungen'] = df_i['Wind Onshore [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
-# df_i['Photovoltaik [MW] Berechnete Auflösungen'] = df_i['Photovoltaik [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
-# 
-# column_name = 'Sonstige Erneuerbare [MW] Berechnete Auflösungen'
-# 
-# for idx, value in enumerate(df_i[column_name]):
-#     try:
-#         df_i.at[idx, column_name] = float(value.replace(".", "").replace(",", "."))
-#     except (ValueError, AttributeError):
-#         df_i.at[idx, column_name] = 0
-# 
-# df_i['Kernenergie [MW] Berechnete Auflösungen'] = df_i['Kernenergie [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
-# df_i['Braunkohle [MW] Berechnete Auflösungen'] = df_i['Braunkohle [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
+    # df_i['Biomasse [MW] Berechnete Auflösungen'] = df_i['Biomasse [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
+    # df_i['Wasserkraft [MW] Berechnete Auflösungen'] = df_i['Wasserkraft [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
+    # df_i['Wind Offshore [MW] Berechnete Auflösungen'] = df_i['Wind Offshore [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
+    # df_i['Wind Onshore [MW] Berechnete Auflösungen'] = df_i['Wind Onshore [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
+    # df_i['Photovoltaik [MW] Berechnete Auflösungen'] = df_i['Photovoltaik [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
+    # 
+    # column_name = 'Sonstige Erneuerbare [MW] Berechnete Auflösungen'
+    # 
+    # for idx, value in enumerate(df_i[column_name]):
+    #     try:
+    #         df_i.at[idx, column_name] = float(value.replace(".", "").replace(",", "."))
+    #     except (ValueError, AttributeError):
+    #         df_i.at[idx, column_name] = 0
+    # 
+    # df_i['Kernenergie [MW] Berechnete Auflösungen'] = df_i['Kernenergie [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
+    # df_i['Braunkohle [MW] Berechnete Auflösungen'] = df_i['Braunkohle [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
 # df_i['Steinkohle [MW] Berechnete Auflösungen'] = df_i['Steinkohle [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
 # df_i['Erdgas [MW] Berechnete Auflösungen'] = df_i['Erdgas [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
 # df_i['Pumpspeicher [MW] Berechnete Auflösungen'] = df_i['Pumpspeicher [MW] Berechnete Auflösungen'].str.replace(".", "").str.replace(",", ".").astype(float)
