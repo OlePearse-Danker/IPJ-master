@@ -42,10 +42,13 @@ selected_date = pd.to_datetime(
 
 
 #Startzeit des Programms
-start_time = time.time()                  
+start_time = time.time()          
 
-# Dateinamen
+
+# Dateinamen 
 file_production = 'Realisierte_Erzeugung_202001010000_202212312359_Viertelstunde.csv'
+
+
 file_consumption = 'Realisierter_Stromverbrauch_202001010000_202212312359_Viertelstunde.csv'
 
 # Einlesen der Daten aus CSV-Dateien
