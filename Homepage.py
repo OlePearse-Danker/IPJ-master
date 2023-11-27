@@ -566,7 +566,7 @@ with tab2:
     # ---------------------------------------------
     # Consumption Forecast
     st.subheader('Consumption Forecast')
-    st.write('In the following scenario, we assumed that the consumption will increase by 15.7% compared to 2022 due to the electrification of the transport and heating sector.')
+    st.write('In the following scenario, we assumed that the consumption will increase by 42.95 TWh compared to 2022 due to the electrification of the transport and heating sector.')
 
 
     assumptions = [
@@ -606,6 +606,19 @@ with tab2:
     st.subheader('Best-Case Scenario')
     st.write('In the following scenario, we assumed that the expansion targets for wind and photovoltaic energy will be hit until 2030.')
 
+    st.markdown('##### Expansion targets BWMK until 2030')
+
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(label='Wind Onshore', value='115 GW')
+
+    with col2:
+        st.metric(label='Wind Offshore', value='30 GW')
+
+    with col3:
+        st.metric(label='Photovoltaic', value='215 GW')
 
     start_date = datetime.date(2030, 1, 1)
     end_date = datetime.date(2030, 12, 31)
@@ -773,7 +786,7 @@ with tab2:
 
     # Aktualisieren Sie das Layout für Titel und Achsenbeschriftungen
     fig_7.update_layout(
-        title='Number of quarters with renewable energy generation equal to or greater than consumption',
+        title='Number of quarters with renewable energy generation equal to or greater than consumption in 2030',
         xaxis=dict(title='Percentage of renewable energy'),
         yaxis=dict(title='Number of quarters')
     )
