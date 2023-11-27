@@ -295,18 +295,14 @@ with col2:
 
 
 
-# Dark Lulls
-# ------------------------------------------------
+#-------------------------------Dunkelflaute----------------------------------------------------------------------------------------
 
-count_dict = {"up to 10%": [], "up to 20%": []}  # Example count dictionary
 
 installed_power_dict = {
     2020: 122603,
     2021: 129551,
     2022: 133808
 }
-
-
 
 def find_dark_lulls(selected_date, production_df, installed_power_dict, count_dict):
     # Get the year of the selected date
@@ -336,34 +332,45 @@ def find_dark_lulls(selected_date, production_df, installed_power_dict, count_di
     else:
         return None
 
-
-def find_dark_lulls_for_year(production_df, installed_power_dict, start_date):
-
-    start_date = datetime.date(year, 1, 1)
-    end_date = datetime.date(year, 12, 31)
+def find_dark_lulls_for_years(production_df, installed_power_dict):
+    # Loop through all days in the years 2020 to 2022
+    start_date = datetime.date(2020, 1, 1)
+    end_date = datetime.date(2022, 12, 31)
 
     dark_lulls_dict = {"up to 10%": [], "up to 20%": []}
-    current_date = pd.Timestamp(start_date)  
+    current_date = pd.Timestamp(start_date)
     
     while current_date <= pd.Timestamp(end_date):
-        find_dark_lulls(current_date.date(), production_df, installed_power_dict, dark_lulls_dict)
+        find_dark_lulls(current_date, production_df, installed_power_dict, dark_lulls_dict)
         current_date += pd.DateOffset(days=1)
     
     # Sort lists by date
     for label, days_list in dark_lulls_dict.items():
         dark_lulls_dict[label] = sorted(days_list)
     
+    # Display the sorted lists
+    print("\nList of days up to 10%:")
+    for day in dark_lulls_dict["up to 10%"]:
+        print(day.strftime('%d.%m.%Y'))
+
+    print("\nList of days up to 20%:")
+    for day in dark_lulls_dict["up to 20%"]:
+        print(day.strftime('%d.%m.%Y'))
+    
+    print("\nNumber of days up to 10%:", len(dark_lulls_dict["up to 10%"]))
+    print("Number of days up to 20%:", len(dark_lulls_dict["up to 20%"]))
 
     amount_10 = len(dark_lulls_dict["up to 10%"])
     amount_20 = len(dark_lulls_dict["up to 20%"])
-    
+
     return amount_10, amount_20
 
-st.markdown(f'#### Amount of dark lulls in {year}')
+
+st.markdown('#### Amount of dark lulls in from 2020 to 2022')
 st.markdown('The following metrics shows the amount of dark lulls for the years 2020 to 2022. A dark lull is defined as a day where the renewable energy production is less than 10% or 20% of the installed power.')
 
 
-amount_10, amount_20 = find_dark_lulls_for_year(production_df, installed_power_dict, year)
+amount_10, amount_20 = find_dark_lulls_for_years(production_df, installed_power_dict)
 
 
 col1, col2 = st.columns(2)
@@ -373,6 +380,7 @@ with col1:
 
 with col2:
     st.metric(label='Number of days up to 20%', value=amount_20)
+
 
 
 # ------------------------------------------------
