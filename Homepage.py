@@ -403,10 +403,11 @@ with tab1:
 
     year_options = [2020, 2021, 2022]
 
-    year = st.selectbox('Which year would you like to see?', year_options, key='year_selectbox')
     st.markdown(f'#### Amount of dark lulls in {year}')
     st.markdown('The following metrics show the amount of dark lulls for the years 2020 to 2022. A dark lull is defined as a day where the renewable energy production is less than 10% or 20% of the installed power.')
     st.markdown('For the years 2021 and 2022 the amount of dark lulls is compared to the previous year.')
+
+    year = st.selectbox('Which year would you like to see?', year_options, key='year_selectbox')
 
     col1, col2 = st.columns(2)
 
