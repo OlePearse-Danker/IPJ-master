@@ -295,6 +295,86 @@ with col2:
 
 
 
+# Dark Lulls
+# ------------------------------------------------
+
+count_dict = {"up to 10%": [], "up to 20%": []}  # Example count dictionary
+
+installed_power_dict = {
+    2020: 122603,
+    2021: 129551,
+    2022: 133808
+}
+
+
+
+def find_dark_lulls(selected_date, production_df, installed_power_dict, count_dict):
+    # Get the year of the selected date
+    year = selected_date.year
+    
+    # Installed power for the corresponding year
+    installed_power = installed_power_dict.get(year, None)
+    
+    if installed_power is None:
+        print(f"No installed power found for the year {year}.")
+        return None
+    
+    # Filter data for the selected date
+    selected_production = production_df[production_df[DATE] == selected_date]
+    
+    # Sum the renewable energy production for the selected date
+    total_renewable_production_selected_date = selected_production[columns_to_clean].sum(axis=1).sum()
+    
+    # Compare with installed power for different thresholds
+    threshold_10_percent = installed_power * 0.1
+    threshold_20_percent = installed_power * 0.2
+    
+    if total_renewable_production_selected_date/24 < threshold_10_percent:
+        count_dict["up to 10%"].append(selected_date)
+    elif total_renewable_production_selected_date/24 < threshold_20_percent:
+        count_dict["up to 20%"].append(selected_date)
+    else:
+        return None
+
+
+def find_dark_lulls_for_year(production_df, installed_power_dict, start_date):
+
+    start_date = datetime.date(year, 1, 1)
+    end_date = datetime.date(year, 12, 31)
+
+    dark_lulls_dict = {"up to 10%": [], "up to 20%": []}
+    current_date = pd.Timestamp(start_date)  
+    
+    while current_date <= pd.Timestamp(end_date):
+        find_dark_lulls(current_date.date(), production_df, installed_power_dict, dark_lulls_dict)
+        current_date += pd.DateOffset(days=1)
+    
+    # Sort lists by date
+    for label, days_list in dark_lulls_dict.items():
+        dark_lulls_dict[label] = sorted(days_list)
+    
+
+    amount_10 = len(dark_lulls_dict["up to 10%"])
+    amount_20 = len(dark_lulls_dict["up to 20%"])
+    
+    return amount_10, amount_20
+
+st.markdown(f'#### Amount of dark lulls in {year}')
+st.markdown('The following metrics shows the amount of dark lulls for the years 2020 to 2022. A dark lull is defined as a day where the renewable energy production is less than 10% or 20% of the installed power.')
+
+
+amount_10, amount_20 = find_dark_lulls_for_year(production_df, installed_power_dict, year)
+
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(label='Number of days up to 10%', value=amount_10)
+
+with col2:
+    st.metric(label='Number of days up to 20%', value=amount_20)
+
+
 # ------------------------------------------------
 
 # first forecast by Lucas
@@ -346,6 +426,7 @@ def show_figure_4():
 st.subheader('Forecast of Renewable Energy production')
 
 show_figure_4()
+
 
 # ------------------------------------------------
 # Tryout for the 2030 production forecast from Noah
