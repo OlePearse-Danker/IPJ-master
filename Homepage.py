@@ -197,7 +197,7 @@ with tab1:
 
 
     fig_1.update_layout(
-        title=f'Energy Production and Consumption on {selected_date}',
+        title=f'Energy Production and Consumption on {selected_date.strftime("%d.%m.%Y")}',
         xaxis=dict(title='Time (hours)', showgrid=True),
         yaxis=dict(title='Energy (GWh)', showgrid=True, tickformat=".0f"),
         showlegend=True
@@ -340,13 +340,16 @@ with tab1:
         else:
             return None
 
-    def find_dark_lulls_for_years(production_df, installed_power_dict):
+    def find_dark_lulls_for_years(production_df, installed_power_dict,year):
         # Loop through all days in the years 2020 to 2022
-        start_date = datetime.date(2020, 1, 1)
-        end_date = datetime.date(2022, 12, 31)
+        start_date = datetime.date(year, 1, 1)
+        end_date = datetime.date(year, 12, 31)
 
         dark_lulls_dict = {"up to 10%": [], "up to 20%": []}
         current_date = pd.Timestamp(start_date)
+
+        amount_10 = 0
+        amount_20 = 0
         
         while current_date <= pd.Timestamp(end_date):
             find_dark_lulls(current_date, production_df, installed_power_dict, dark_lulls_dict)
@@ -374,20 +377,40 @@ with tab1:
         return amount_10, amount_20
 
 
-    st.markdown('#### Amount of dark lulls in from 2020 to 2022')
-    st.markdown('The following metrics shows the amount of dark lulls for the years 2020 to 2022. A dark lull is defined as a day where the renewable energy production is less than 10% or 20% of the installed power.')
+    year = selected_date.year
 
+    def calculate_metrics(year):
+        amount_10, amount_20 = find_dark_lulls_for_years(production_df, installed_power_dict, year)
+        return amount_10, amount_20
 
-    amount_10, amount_20 = find_dark_lulls_for_years(production_df, installed_power_dict)
+    def update_metrics(year):
 
+        amount_10, amount_20 = calculate_metrics(year)
+
+        if year == 2021 or 2022:
+            previous_year = year - 1  # Calculate the previous year
+            amount_10_previous, amount_20_previous = calculate_metrics(previous_year)
+        else:
+            amount_10_previous, amount_20_previous = 0, 0
+
+        delta_10 = amount_10 - amount_10_previous
+        delta_20 = amount_20 - amount_20_previous
+
+        col1.metric("Number of days up to 10%", amount_10, delta=delta_10, delta_color='normal')
+        col2.metric("Number of days up to 20%", amount_20, delta=delta_20, delta_color='normal')
+        
+
+    year_options = [2020, 2021, 2022]
+
+    year = st.selectbox('Which year would you like to see?', year_options, key='year_selectbox')
+    st.markdown(f'#### Amount of dark lulls in {year}')
+    st.markdown('The following metrics show the amount of dark lulls for the years 2020 to 2022. A dark lull is defined as a day where the renewable energy production is less than 10% or 20% of the installed power.')
+    st.markdown('For the years 2021 and 2022 the amount of dark lulls is compared to the previous year.')
 
     col1, col2 = st.columns(2)
 
-    with col1:
-        st.metric(label='Number of days up to 10%', value=amount_10)
+    update_metrics(year)
 
-    with col2:
-        st.metric(label='Number of days up to 20%', value=amount_20)
 
 
 
@@ -447,12 +470,9 @@ with tab2:
 
 
 # ------------------------------------------------
-# Tryout for the 2030 production forecast from Noah
+# 2030 production forecast from Noah
 
 #--------------------------------------------------------------------------
-# Abfrage datum
-
-
 
 
     # Funktion
@@ -639,7 +659,7 @@ with tab2:
     )
 
     fig_5.update_layout(
-        title=f'Energy Production and Consumption on {selected_date}',
+        title=f'Energy Production and Consumption on {selected_date.strftime("%d.%m.%Y")}',
         xaxis=dict(title='Time (hours)'),
         yaxis=dict(title='Energy (MWh)'),
         showlegend=True
@@ -664,9 +684,12 @@ with tab2:
         xaxis=dict(tickmode='array', tickvals=list(range(0, 330, 5)), ticktext=labels[::5]))  # X-axis label settings
 
     # Title and axis labels settings
-    fig_6.update_layout(title='Anzahl der Viertelstunden im Jahren 2030 mit 0-330 % EE-Anteil',
-                    xaxis_title='Prozentsatz erneuerbarer Energie',
-                    yaxis_title='Anzahl der Viertelstunden')
+    fig_6.update_layout(
+        title='Number of quarter hours in 2030 with 0-330% share of renewable energy',
+        xaxis_title='Percentage of renewable energy',
+        yaxis_title='Number of quarter hours'
+    )
+
 
     st.plotly_chart(fig_6)
 
@@ -706,9 +729,9 @@ with tab2:
 
     # Aktualisieren Sie das Layout für Titel und Achsenbeschriftungen
     fig_7.update_layout(
-        title='Anzahl der Viertelstunden mit erneuerbarer Energieerzeugung über oder gleich dem Verbrauch',
-        xaxis=dict(title='Prozentsatz erneuerbarer Energie'),
-        yaxis=dict(title='Anzahl der Viertelstunden')
+        title='Number of quarters with renewable energy generation equal to or greater than consumption',
+        xaxis=dict(title='Percentage of renewable energy'),
+        yaxis=dict(title='Number of quarters')
     )
 
     # Zeigen Sie den Plot an
