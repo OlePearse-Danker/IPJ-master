@@ -563,6 +563,49 @@ with tab2:
         other = 6000
         return railway + batterieProdAndServerRooms + powerNetLoss - efficiency - other
 
+    # ---------------------------------------------
+    # Consumption Forecast
+    st.subheader('Consumption Forecast')
+    st.write('In the following scenario, we assumed that the consumption will increase by 15.7% compared to 2022 due to the electrification of the transport and heating sector.')
+
+
+    assumptions = [
+        "Consumption of EVs",
+        "Consumption of heat pumps",
+        "Consumption of railway",
+        "Consumption of battery production and server rooms",
+        "Energy loss in the power grid",
+        "Efficiency of the power plants"
+    ]
+
+    delta_values = [
+        43.13, 
+        32.82,
+        5,
+        13,
+        -1,
+        -51
+    ]
+
+    colors = ['green' if delta > 0 else 'red' for delta in delta_values]
+
+    fig_4 = go.Figure(data=go.Bar(x=assumptions, y=delta_values, marker=dict(color=colors)))
+    fig_4.update_layout(
+        title='Expected increase in consumption till 2030 compared to 2022',
+        xaxis=dict(title='Factors'),
+        yaxis=dict(title='Energy consumption in TWh'),
+    )
+
+    # Display the chart in Streamlit
+    st.plotly_chart(fig_4)
+
+    # ---------------------------------------------
+    # Best-Case Scenario
+
+    # Display the metrics and delta values
+    st.subheader('Best-Case Scenario')
+    st.write('In the following scenario, we assumed that the expansion targets for wind and photovoltaic energy will be hit until 2030.')
+
 
     start_date = datetime.date(2030, 1, 1)
     end_date = datetime.date(2030, 12, 31)
