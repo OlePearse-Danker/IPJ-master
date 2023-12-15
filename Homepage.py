@@ -862,33 +862,31 @@ with tab3:
     result_differenz_sorted_100, power_in_GW_100 = powerOfStorage(verbrauch2030df, scaled_production_df,1)
 
     #Benötigte Leistung für den Überschuss
-    result_differenz_sorted_surplus, power_in_GW_surplus = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.8)
+    result_differenz_sorted_surplus_80, power_in_GW_surplus_80 = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.8)
+    result_differenz_sorted_surplus_90, power_in_GW_surplus_90 = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.9)
+    result_differenz_sorted_surplus_100, power_in_GW_surplus_100 = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,1)
 
-    # Create a DataFrame with the power values
+    # Create a DataFrame with the power values for consumption and surplus
     df = pd.DataFrame({
         'Percentage': ['80%', '90%', '100%'],
-        'Power in GW': [power_in_GW_80, power_in_GW_90, power_in_GW_100]
+        'Power in GW (Consumption)': [power_in_GW_80, power_in_GW_90, power_in_GW_100],
+        'Power in GW (Surplus)': [power_in_GW_surplus_80, power_in_GW_surplus_90, power_in_GW_surplus_100]
     })
 
-# Plot the DataFrame as a bar chart
-    fig_8 = px.bar(df, x='Percentage', y='Power in GW')
+    # Plot the DataFrame as a grouped bar chart
+    fig_8 = px.bar(df, x='Percentage', y=['Power in GW (Consumption)', 'Power in GW (Surplus)'])
 
     fig_8.update_layout(
-        title='Required power of storage [GW] for 80-100 % coverage of consumption',
-        xaxis=dict(title='Covered Consumption by storage [%]', 
-            tickmode='array', 
-            tickvals=[80, 90, 100]),
+        title='Required power of storage [GW] for 80-100 % coverage of consumption and surplus',
+        xaxis=dict(title='Covered Consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
         yaxis=dict(title='Required power of storage [GW]'))
+
 
     fig_8.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
     st.plotly_chart(fig_8)
 
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.dataframe(df)
-    with col2: 
-        st.metric(label='Power Surplus [GW]', value=f'{power_in_GW_surplus:.2f}')
+    st.dataframe(df)
+
 
 # Ausgabe des sortierten DataFrames
 print("Sortiertes DataFrame nach Differenz:")
