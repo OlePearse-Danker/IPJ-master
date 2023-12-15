@@ -25,7 +25,7 @@ st.divider()
 # tabs
 # --------------------
 
-tab1, tab2 = st.tabs(["As-Is-Analysis", "Prognosis"])
+tab1, tab2, tab3 = st.tabs(["As-Is-Analysis", "Prognosis", "Storage"])
 
 with tab1:
     st.subheader('Energy production and consumption')
@@ -477,7 +477,7 @@ with tab2:
 #--------------------------------------------------------------------------
 
 
-    # Funktion
+      # Funktion
     def energyConsumption(consumption_df):
         wärmepumpeHochrechnung2030 = wärmepumpe()
         eMobilitätHochrechnung2030 = eMobilität()
@@ -592,13 +592,18 @@ with tab2:
 
     fig_4 = go.Figure(data=go.Bar(x=assumptions, y=delta_values, marker=dict(color=colors)))
     fig_4.update_layout(
-        title='Expected increase in consumption till 2030 compared to 2022',
+        title='Expected increase in consumption till 2030 compared to 2021',
         xaxis=dict(title='Factors'),
         yaxis=dict(title='Energy consumption in TWh'),
     )
 
     # Display the chart in Streamlit
     st.plotly_chart(fig_4)
+
+    st.markdown("#### Choose your consumption scenario")
+
+    consumption_selection_slider = st.slider('Choose the consumption for 2030 in TWh', 500, 750, 800)
+    st.write("You chose", consumption_selection_slider, "TWh of consumption in 2030")
 
     # ---------------------------------------------
     # Best-Case Scenario
@@ -794,3 +799,133 @@ with tab2:
 
     # Zeigen Sie den Plot an
     st.plotly_chart(fig_7)
+
+#---------------------------------------
+#Storage by Timo
+
+with tab3:  
+    def powerOfStorage(verbrauch_df, erzeugung_df,prozent):
+        # Kopien der DataFrames erstellen, um den Originalinhalt nicht zu verändern
+        verbrauch_copy = verbrauch_df.copy()
+        erzeugung_copy = erzeugung_df.copy()
+        
+        # Setzen des Datums als Index für die einfache Berechnung der Differenz
+        erzeugung_copy.set_index('Datum', inplace=True)
+        verbrauch_copy.set_index('Datum', inplace=True)
+        
+        # Berechnung der Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
+        differenz =(verbrauch_copy['Verbrauch [MWh]'] *prozent)- erzeugung_copy['Total Production']
+        
+        # Neuer DataFrame für die Differenz erstellen
+        differenz_data = pd.DataFrame({'Differenz': differenz})
+        
+        # Sortieren des DataFrames nach der Spalte 'Differenz'
+        differenz_data_sorted = differenz_data.sort_values(by='Differenz', ascending=False)
+        
+        # Mittelwert der ersten 100 größten Differenzen berechnen
+        mean_top_100 = differenz_data_sorted.head(100)['Differenz'].mean()
+        power_in_GW =mean_top_100 /(0.25*1000) #Umrechnung des Mittelwerts in GW und Leistung
+        
+        return differenz_data_sorted,power_in_GW
+    
+    def powerOfStorageforsurplus(verbrauch_df, erzeugung_df,prozent):
+        # Kopien der DataFrames erstellen, um den Originalinhalt nicht zu verändern
+        verbrauch_copy = verbrauch_df.copy()
+        erzeugung_copy = erzeugung_df.copy()
+        
+        # Setzen des Datums als Index für die einfache Berechnung der Differenz
+        erzeugung_copy.set_index('Datum', inplace=True)
+        verbrauch_copy.set_index('Datum', inplace=True)
+        
+        # Berechnung der Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
+        differenz =erzeugung_copy['Total Production']-(verbrauch_copy['Verbrauch [MWh]']*prozent)
+        
+        # Neuer DataFrame für die Differenz erstellen
+        differenz_data = pd.DataFrame({'Differenz': differenz})
+        
+        # Sortieren des DataFrames nach der Spalte 'Differenz'
+        differenz_data_sorted = differenz_data.sort_values(by='Differenz', ascending=False)
+        
+    
+        
+        # Mittelwert der ersten 100 größten Differenzen berechnen
+        mean_top_100 = differenz_data_sorted.head(100)['Differenz'].mean()
+        power_in_GW =mean_top_100 /(0.25*1000) #Umrechnung des Mittelwerts in GW und Leistung
+        
+        return differenz_data_sorted,power_in_GW 
+
+    st.subheader('Storage Prognosis')
+
+    # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+    result_differenz_sorted_80, power_in_GW_80 = powerOfStorage(verbrauch2030df, scaled_production_df,0.8)
+    result_differenz_sorted_90, power_in_GW_90 = powerOfStorage(verbrauch2030df, scaled_production_df,0.9)
+    result_differenz_sorted_100, power_in_GW_100 = powerOfStorage(verbrauch2030df, scaled_production_df,1)
+
+    #Benötigte Leistung für den Überschuss
+    result_differenz_sorted_surplus, power_in_GW_surplus = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.8)
+
+    # Create a DataFrame with the power values
+    df = pd.DataFrame({
+        'Percentage': ['80%', '90%', '100%'],
+        'Power in GW': [power_in_GW_80, power_in_GW_90, power_in_GW_100]
+    })
+
+# Plot the DataFrame as a bar chart
+    fig_8 = px.bar(df, x='Percentage', y='Power in GW')
+
+    fig_8.update_layout(
+        title='Required power of storage [GW] for 80-100 % coverage of consumption',
+        xaxis=dict(title='Covered Consumption by storage [%]', 
+            tickmode='array', 
+            tickvals=[80, 90, 100]),
+        yaxis=dict(title='Required power of storage [GW]'))
+
+    fig_8.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
+    st.plotly_chart(fig_8)
+
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.dataframe(df)
+    with col2: 
+        st.metric(label='Power Surplus [GW]', value=f'{power_in_GW_surplus:.2f}')
+
+# Ausgabe des sortierten DataFrames
+print("Sortiertes DataFrame nach Differenz:")
+print(result_differenz_sorted_80)
+
+# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+print("Leistung der Speicher für 80% Dekung in GW:", power_in_GW_80)
+
+    # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+
+# Ausgabe des sortierten DataFrames
+print("Sortiertes DataFrame nach Differenz:")
+print(result_differenz_sorted_90)
+
+# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+print("Leistung der Speicher für 90% Dekung in GW:", power_in_GW_90)
+
+# Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+result_differenz_sorted_100, power_in_GW_100 = powerOfStorage(verbrauch2030df, scaled_production_df,1)
+
+# Ausgabe des sortierten DataFrames
+print("Sortiertes DataFrame nach Differenz:")
+print(result_differenz_sorted_100)
+
+# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+print("Leistung der Speicher für 100% Dekung in GW:", power_in_GW_100) 
+
+#Benötigte Leistung für den Überschuss
+
+# Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+result_differenz_sorted_surplus, power_in_GW_surplus = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.8)
+
+# Ausgabe des sortierten DataFrames
+print("Sortiertes DataFrame nach Differenz:")
+print(result_differenz_sorted_surplus)
+
+# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+print("Leistung der Speicher für die Überschussaufnahme in GW:", power_in_GW_surplus)
+
+
