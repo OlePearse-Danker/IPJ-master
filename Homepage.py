@@ -873,8 +873,12 @@ with tab3:
         'Power in GW (Surplus)': [power_in_GW_surplus_80, power_in_GW_surplus_90, power_in_GW_surplus_100]
     })
 
-    # Plot the DataFrame as a grouped bar chart
-    fig_8 = px.bar(df, x='Percentage', y=['Power in GW (Consumption)', 'Power in GW (Surplus)'])
+    percentages = ['80%', '90%', '100%']
+
+    fig_8 = go.Figure(data=[
+        go.Bar(name='Power in GW (Consumption)', x=percentages, y=[power_in_GW_80, power_in_GW_90, power_in_GW_100]),
+        go.Bar(name='Power in GW (Surplus)', x=percentages, y=[power_in_GW_surplus_80, power_in_GW_surplus_90, power_in_GW_surplus_100])
+    ])
 
     fig_8.update_layout(
         title='Required power of storage [GW] for 80-100 % coverage of consumption and surplus',
@@ -882,6 +886,7 @@ with tab3:
         yaxis=dict(title='Required power of storage [GW]'))
 
 
+    fig_8.update_layout(barmode='group')
     fig_8.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
     st.plotly_chart(fig_8)
 
