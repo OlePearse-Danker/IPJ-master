@@ -544,6 +544,8 @@ def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
     verbrauch_copy = verbrauch_df.copy()
     erzeugung_copy = erzeugung_df.copy()
     capacity_value = 0  # Verwende den übergebenen Startwert der Kapazität
+    enrgieSurPlus=0
+    efficencie=0.9 #Mittel von Pump und Batteriespeicher
 
     # Setze das Datum als Index für die einfache Berechnung der Differenz
     erzeugung_copy.set_index('Datum', inplace=True)
@@ -552,42 +554,120 @@ def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
     # Berechne die Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
     differenz = (verbrauch_copy['Verbrauch [MWh]']) * prozent - erzeugung_copy['Total Production']
     differenz_data = pd.DataFrame({'Differenz': differenz})
-    while capacity_value == 0:
-       capacity_value =start_capacity
-       start_capacity=start_capacity+100000
-        # Iteriere über die Differenzen
-       for index, value in differenz_data.iterrows():
-        # Wenn die Differenz positiv ist, entnehme der Kapazität
-        if value['Differenz'] > 0:
-            # Überprüfe, ob die Kapazität leer wird
-            if capacity_value - value['Differenz'] < 0:
+
+    total_consumption = verbrauch_copy['Verbrauch [MWh]'].sum()
+    total_production = erzeugung_copy['Total Production'].sum()
+    
+    # Berechne den prozentualen Anteil des Verbrauchs zur Erzeugung auf Viertelstundenbasis
+    percentage = (total_consumption / total_production)
+    
+    if percentage<=prozent:
+        percentage=percentage*100
+        print(f"Die Erzeugung kann den angegebenen verbrauch nicht decken {percentage}%")
+        return 0,0
+    else:
+        while capacity_value == 0:
+         start_capacity=start_capacity+1000000
+         capacity_value =start_capacity
+         
+         energieSurPlus=0
+
+         # Iteriere über die Differenzen
+         for index, value in differenz_data.iterrows():
+         # Wenn die Differenz positiv ist, entnehme der Kapazität
+          if value['Differenz'] > 0:
+             # Überprüfe, ob die Kapazität leer wird
+             if capacity_value - value['Differenz'] < 0:
                 # Berechne den verbleibenden positiven Wert, der noch entnommen werden kann
                 remaining_capacity = capacity_value
                 capacity_value=0
-                #print(f"Speicher ist leer, es konnten nur {capacity_value} MWh entnommen werden.")
+                print(f"Speicher ist leer, es konnten nur {capacity_value} MWh entnommen werden.")
                 break
                 
                 
+             else:
+                capacity_value -= value['Differenz']
+                #print(f"Entnehme {value['Differenz']} MWh aus dem Speicher. Aktuelle Kapazität: {capacity_value} MWh")
+
+         # Wenn die Differenz negativ ist, füge der Kapazität hinzu
+          elif value['Differenz'] < 0:
+             # Überprüfe, ob mehr eingespeichert werden kann als der Wert der Kapazität
+             if capacity_value + (abs(value['Differenz'])*efficencie) > start_capacity:
+                #print("Es kann nicht mehr eingespeichert werden als die verfügbare Kapazität.")
+                energieSurPlus=capacity_value + abs(value['Differenz'])*efficencie-start_capacity
+
+                capacity_value = start_capacity
+             else:
+                capacity_value -= (value['Differenz']*efficencie)
+               # print(f"Füge {abs(value['Differenz'])} MWh dem Speicher hinzu. Aktuelle Kapazität: {capacity_value} MWh")
+         
+        return capacity_value, start_capacity,energieSurPlus
+   
+
+capacity_value, capacity_value_start,energieSurPlus = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
+
+print('capacity value' + str(capacity_value))
+print('capacity_value_start' + str(capacity_value_start))
+print('energieSurPlus' + str(energieSurPlus))
+
+#Evtuell auch gut geeignet
+def capacity2(verbrauch_df, erzeugung_df, prozent):
+    verbrauch_copy = verbrauch_df.copy()
+    erzeugung_copy = erzeugung_df.copy()
+    capacity_value = 0  # Verwende den übergebenen Startwert der Kapazität
+    maxnegativ=0
+    maxpositiv=0
+
+    # Setze das Datum als Index für die einfache Berechnung der Differenz
+    erzeugung_copy.set_index('Datum', inplace=True)
+    verbrauch_copy.set_index('Datum', inplace=True)
+
+    # Berechne die Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
+    differenz = (verbrauch_copy['Verbrauch [MWh]']) * prozent - erzeugung_copy['Total Production']
+    differenz_data = pd.DataFrame({'Differenz': differenz})
+
+    
+    
+    for index, value in differenz_data.iterrows():
+        # Wenn die Differenz positiv ist, entnehme der Kapazität
+        if value['Differenz'] > 0:
+            # Überprüfe, ob die Kapazität leer wird
+            if capacity_value - value['Differenz'] <maxnegativ :
+                # Berechne den verbleibenden positiven Wert, der noch entnommen werden kann
+                
+                capacity_value -= value['Differenz']
+                maxnegativ=capacity_value
+                               
             else:
                 capacity_value -= value['Differenz']
                 #print(f"Entnehme {value['Differenz']} MWh aus dem Speicher. Aktuelle Kapazität: {capacity_value} MWh")
 
         # Wenn die Differenz negativ ist, füge der Kapazität hinzu
         elif value['Differenz'] < 0:
-            # Überprüfe, ob mehr eingespeichert werden kann als der Wert der Kapazität
-            if capacity_value + abs(value['Differenz']) > start_capacity:
-                #print("Es kann nicht mehr eingespeichert werden als die verfügbare Kapazität.")
-                capacity_value = start_capacity
-            else:
-                capacity_value -= value['Differenz']
-               # print(f"Füge {abs(value['Differenz'])} MWh dem Speicher hinzu. Aktuelle Kapazität: {capacity_value} MWh")
+         if capacity_value - value['Differenz'] >maxpositiv :
+            
+          capacity_value -= value['Differenz']
+          maxpositiv=capacity_value
+         else:
+             capacity_value -= value['Differenz']
+             
+              
 
-   
+    return maxnegativ,maxpositiv
 
-    return capacity_value, start_capacity
-    
+#maxnegativ,maxpositiv = capacity2(verbrauch2030df, scaled_production_df, 0.8)
+#print(maxnegativ)
+#print(maxpositiv)
 
-capacity_value, capacity_value_start = capacity(verbrauch2030df, scaled_production_df, 0.8, 12000000)
-print(capacity_value)
-print(capacity_value_start)
+def investmentcost(capacity_needed):   #Eventuell noch prozente von Speicherarten hinzufügen
+ capacity_in_germany=0  
+ cost_of_Battery=100 #Einheit sind Euro/kWh
 
+ capacity_for_expension=capacity_needed-capacity_in_germany
+
+ price=(cost_of_Battery*capacity_for_expension)/(1000000) #Price in Bilion
+
+ print(f"Der Preis in Milliarden beträgt:{price}")
+
+
+investmentcost(capacity_value_start)

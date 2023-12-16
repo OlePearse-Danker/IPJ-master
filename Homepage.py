@@ -28,7 +28,7 @@ st.divider()
 tab1, tab2, tab3 = st.tabs(["As-Is-Analysis", "Prognosis", "Storage"])
 
 with tab1:
-    st.subheader('Energy production and consumption')
+    st.header('Energy production and consumption')
     st.write('For the following plots, we collected the electricity market data of Germany for the years 2020, 2021, and 2022 and analyzed the production and consumption. In the first plot, you can see the production and consumption for any specific day in the period from 2020 to 2022.')
 
     start_date = datetime.date(2020, 1, 1)
@@ -566,7 +566,7 @@ with tab2:
 
     # ---------------------------------------------
     # Consumption Forecast
-    st.subheader('Consumption Forecast')
+    st.header('Consumption Forecast')
     st.write('In the following scenario, we assumed that the consumption will increase by 42.95 TWh compared to 2022 due to the electrification of the transport and heating sector.')
 
 
@@ -854,7 +854,138 @@ with tab3:
         
         return differenz_data_sorted,power_in_GW 
 
-    st.subheader('Storage Prognosis')
+
+
+    def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
+        verbrauch_copy = verbrauch_df.copy()
+        erzeugung_copy = erzeugung_df.copy()
+        capacity_value = 0  # Verwende den übergebenen Startwert der Kapazität
+        enrgieSurPlus = 0
+        efficencie = 0.9  # Mittel von Pump und Batteriespeicher
+
+        # Setze das Datum als Index für die einfache Berechnung der Differenz
+        erzeugung_copy.set_index('Datum', inplace=True)
+        verbrauch_copy.set_index('Datum', inplace=True)
+
+        # Berechne die Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
+        differenz = (verbrauch_copy['Verbrauch [MWh]']) * prozent - erzeugung_copy['Total Production']
+        differenz_data = pd.DataFrame({'Differenz': differenz})
+
+        total_consumption = verbrauch_copy['Verbrauch [MWh]'].sum()
+        total_production = erzeugung_copy['Total Production'].sum()
+
+        # Berechne den prozentualen Anteil des Verbrauchs zur Erzeugung auf Viertelstundenbasis
+        percentage = (total_consumption / total_production)
+
+        if percentage <= prozent:
+            percentage = percentage * 100
+            print(f"Die Erzeugung kann den angegebenen Verbrauch nicht decken ({percentage}%).")
+            return 0, 0
+        else:
+            while capacity_value == 0:
+                start_capacity = start_capacity + 1000000
+                capacity_value = start_capacity
+
+                energieSurPlus = 0
+
+                # Iteriere über die Differenzen
+                for index, value in differenz_data.iterrows():
+                    # Wenn die Differenz positiv ist, entnehme der Kapazität
+                    if value['Differenz'] > 0:
+                        # Überprüfe, ob die Kapazität leer wird
+                        if capacity_value - value['Differenz'] < 0:
+                            # Berechne den verbleibenden positiven Wert, der noch entnommen werden kann
+                            remaining_capacity = capacity_value
+                            capacity_value = 0
+                            print(f"Speicher ist leer, es konnten nur {capacity_value} MWh entnommen werden.")
+                            break
+                        else:
+                            capacity_value -= value['Differenz']
+                            # print(f"Entnehme {value['Differenz']} MWh aus dem Speicher. Aktuelle Kapazität: {capacity_value} MWh")
+
+                    # Wenn die Differenz negativ ist, füge der Kapazität hinzu
+                    elif value['Differenz'] < 0:
+                        # Überprüfe, ob mehr eingespeichert werden kann als der Wert der Kapazität
+                        if capacity_value + (abs(value['Differenz']) * efficencie) > start_capacity:
+                            # print("Es kann nicht mehr eingespeichert werden als die verfügbare Kapazität.")
+                            energieSurPlus = capacity_value + abs(value['Differenz']) * efficencie - start_capacity
+                            capacity_value = start_capacity
+                        else:
+                            capacity_value -= (value['Differenz'] * efficencie)
+                        # print(f"Füge {abs(value['Differenz'])} MWh dem Speicher hinzu. Aktuelle Kapazität: {capacity_value} MWh")
+
+            return capacity_value, start_capacity, energieSurPlus
+
+
+
+    #Evtuell auch gut geeignet
+    def capacity2(verbrauch_df, erzeugung_df, prozent):
+        verbrauch_copy = verbrauch_df.copy()
+        erzeugung_copy = erzeugung_df.copy()
+        capacity_value = 0  # Verwende den übergebenen Startwert der Kapazität
+        maxnegativ=0
+        maxpositiv=0
+
+        # Setze das Datum als Index für die einfache Berechnung der Differenz
+        erzeugung_copy.set_index('Datum', inplace=True)
+        verbrauch_copy.set_index('Datum', inplace=True)
+
+        # Berechne die Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
+        differenz = (verbrauch_copy['Verbrauch [MWh]']) * prozent - erzeugung_copy['Total Production']
+        differenz_data = pd.DataFrame({'Differenz': differenz})
+
+        
+        
+        for index, value in differenz_data.iterrows():
+            # Wenn die Differenz positiv ist, entnehme der Kapazität
+            if value['Differenz'] > 0:
+                # Überprüfe, ob die Kapazität leer wird
+                if capacity_value - value['Differenz'] <maxnegativ :
+                    # Berechne den verbleibenden positiven Wert, der noch entnommen werden kann
+                    
+                    capacity_value -= value['Differenz']
+                    maxnegativ=capacity_value
+                                
+                else:
+                    capacity_value -= value['Differenz']
+                    #print(f"Entnehme {value['Differenz']} MWh aus dem Speicher. Aktuelle Kapazität: {capacity_value} MWh")
+
+            # Wenn die Differenz negativ ist, füge der Kapazität hinzu
+            elif value['Differenz'] < 0:
+                if capacity_value - value['Differenz'] >maxpositiv :
+                    
+                    capacity_value -= value['Differenz']
+                    maxpositiv=capacity_value
+                else:
+                    capacity_value -= value['Differenz']
+                
+                
+
+        return maxnegativ,maxpositiv
+
+    #maxnegativ,maxpositiv = capacity2(verbrauch2030df, scaled_production_df, 0.8)
+    #print(maxnegativ)
+    #print(maxpositiv)
+
+    def investmentcost(capacity_needed):   #Eventuell noch prozente von Speicherarten hinzufügen
+        capacity_in_germany=0  
+        cost_of_Battery=100 #Einheit sind Euro/kWh
+
+        capacity_for_expension=capacity_needed-capacity_in_germany
+
+        price=(cost_of_Battery*capacity_for_expension)/(1000000) #Price in Bilion
+
+        print(f"Der Preis in Milliarden beträgt:{price}")
+
+
+
+    st.header('Storage Prognosis')
+
+    st.subheader('Storage Power')
+
+
+    #----------------------------------
+    # Power Calculation
 
     # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
     result_differenz_sorted_80, power_in_GW_80 = powerOfStorage(verbrauch2030df, scaled_production_df,0.8)
@@ -891,6 +1022,42 @@ with tab3:
     st.plotly_chart(fig_8)
 
     st.dataframe(df)
+
+
+    #----------------------------------
+    # Capacity Calculation
+
+    st.subheader('Storage Capacity')
+
+    capacity_value_80, capacity_value_start_80, energieSurPlus_80 = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
+    capacity_value_90, capacity_value_start_90, energieSurPlus_90 = capacity(verbrauch2030df, scaled_production_df, 0.9, 10000000)
+    capacity_value_100, capacity_value_start_100, energieSurPlus_100 = capacity(verbrauch2030df, scaled_production_df, 1, 10000000)
+
+    investment_cost_80 = investmentcost(capacity_value_start_80)
+
+    df = pd.DataFrame({
+        'Percentage': ['80%', '90%', '100%'],
+        'Capacity in GWh (Consumption)': [capacity_value_80, capacity_value_90, capacity_value_100],
+        'Capacity in GWh (Surplus)': [energieSurPlus_80, energieSurPlus_90, energieSurPlus_100],
+        'Capacity Start Value in GWh': [capacity_value_start_80, capacity_value_start_90, capacity_value_start_100]
+    })
+
+
+    fig_9 = go.Figure(data=[
+        go.Bar(name='Capacity in GWh (Consumption)', x=percentages, y=[capacity_value_80, capacity_value_90, capacity_value_100]),
+        go.Bar(name='Power in GWh (Surplus)', x=percentages, y=[energieSurPlus_80, energieSurPlus_90, energieSurPlus_100])
+    ])
+
+    fig_9.update_layout(
+        title='Required capacity of storage [GWh] for 80-100 % coverage of consumption and surplus',
+        xaxis=dict(title='Covered consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
+        yaxis=dict(title='Required capacity [GWh]'))
+
+    fig_9.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
+    fig_9.update_layout(barmode='group')
+    st.plotly_chart(fig_9)
+    st.dataframe(df)
+
 
 
 # Ausgabe des sortierten DataFrames
