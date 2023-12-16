@@ -538,8 +538,6 @@ print("Enddatum der längsten Zeitspanne mit positiven Differenzen:", end_date)
 print("Summe der längsten Zeitspanne mit positiven Differenzen:", max_sum)
 
 
-
-
 def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
     verbrauch_copy = verbrauch_df.copy()
     erzeugung_copy = erzeugung_df.copy()
@@ -573,11 +571,11 @@ def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
          energieSurPlus=0
 
          # Iteriere über die Differenzen
-         for index, value in differenz_data.iterrows():
+        for index, value in differenz_data.iterrows():
          # Wenn die Differenz positiv ist, entnehme der Kapazität
-          if value['Differenz'] > 0:
+         if value['Differenz'] > 0:
              # Überprüfe, ob die Kapazität leer wird
-             if capacity_value - value['Differenz'] < 0:
+            if capacity_value - value['Differenz'] < 0:
                 # Berechne den verbleibenden positiven Wert, der noch entnommen werden kann
                 remaining_capacity = capacity_value
                 capacity_value=0
@@ -585,12 +583,12 @@ def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
                 break
                 
                 
-             else:
+            else:
                 capacity_value -= value['Differenz']
                 #print(f"Entnehme {value['Differenz']} MWh aus dem Speicher. Aktuelle Kapazität: {capacity_value} MWh")
 
          # Wenn die Differenz negativ ist, füge der Kapazität hinzu
-          elif value['Differenz'] < 0:
+         elif value['Differenz'] < 0:
              # Überprüfe, ob mehr eingespeichert werden kann als der Wert der Kapazität
              if capacity_value + (abs(value['Differenz'])*efficencie) > start_capacity:
                 #print("Es kann nicht mehr eingespeichert werden als die verfügbare Kapazität.")
@@ -604,11 +602,12 @@ def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
         return capacity_value, start_capacity,energieSurPlus
    
 
-capacity_value, capacity_value_start,energieSurPlus = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
+# capacity_value, capacity_value_start,energieSurPlus = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
 
-print('capacity value' + str(capacity_value))
+""" print('capacity value' + str(capacity_value))
 print('capacity_value_start' + str(capacity_value_start))
-print('energieSurPlus' + str(energieSurPlus))
+print('energieSurPlus' + str(energieSurPlus)) """
+
 
 #Evtuell auch gut geeignet
 def capacity2(verbrauch_df, erzeugung_df, prozent):

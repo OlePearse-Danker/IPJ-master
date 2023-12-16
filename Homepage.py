@@ -1027,36 +1027,36 @@ with tab3:
     #----------------------------------
     # Capacity Calculation
 
-    st.subheader('Storage Capacity')
+    # st.subheader('Storage Capacity')
 
-    capacity_value_80, capacity_value_start_80, energieSurPlus_80 = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
-    capacity_value_90, capacity_value_start_90, energieSurPlus_90 = capacity(verbrauch2030df, scaled_production_df, 0.9, 10000000)
-    capacity_value_100, capacity_value_start_100, energieSurPlus_100 = capacity(verbrauch2030df, scaled_production_df, 1, 10000000)
+    # capacity_value_80, capacity_value_start_80, energieSurPlus_80 = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
+    # capacity_value_90, capacity_value_start_90, energieSurPlus_90 = capacity(verbrauch2030df, scaled_production_df, 0.9, 10000000)
+    # capacity_value_100, capacity_value_start_100, energieSurPlus_100 = capacity(verbrauch2030df, scaled_production_df, 1, 10000000)
 
-    investment_cost_80 = investmentcost(capacity_value_start_80)
+    # investment_cost_80 = investmentcost(capacity_value_start_80)
 
-    df = pd.DataFrame({
-        'Percentage': ['80%', '90%', '100%'],
-        'Capacity in GWh (Consumption)': [capacity_value_80, capacity_value_90, capacity_value_100],
-        'Capacity in GWh (Surplus)': [energieSurPlus_80, energieSurPlus_90, energieSurPlus_100],
-        'Capacity Start Value in GWh': [capacity_value_start_80, capacity_value_start_90, capacity_value_start_100]
-    })
+    # df = pd.DataFrame({
+    #     'Percentage': ['80%', '90%', '100%'],
+    #     'Capacity in GWh (Consumption)': [capacity_value_80, capacity_value_90, capacity_value_100],
+    #     'Capacity in GWh (Surplus)': [energieSurPlus_80, energieSurPlus_90, energieSurPlus_100],
+    #     'Capacity Start Value in GWh': [capacity_value_start_80, capacity_value_start_90, capacity_value_start_100]
+    # })
 
 
-    fig_9 = go.Figure(data=[
-        go.Bar(name='Capacity in GWh (Consumption)', x=percentages, y=[capacity_value_80, capacity_value_90, capacity_value_100]),
-        go.Bar(name='Power in GWh (Surplus)', x=percentages, y=[energieSurPlus_80, energieSurPlus_90, energieSurPlus_100])
-    ])
+    # fig_9 = go.Figure(data=[
+    #     go.Bar(name='Capacity in GWh (Consumption)', x=percentages, y=[capacity_value_80, capacity_value_90, capacity_value_100]),
+    #     go.Bar(name='Power in GWh (Surplus)', x=percentages, y=[energieSurPlus_80, energieSurPlus_90, energieSurPlus_100])
+    # ])
 
-    fig_9.update_layout(
-        title='Required capacity of storage [GWh] for 80-100 % coverage of consumption and surplus',
-        xaxis=dict(title='Covered consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
-        yaxis=dict(title='Required capacity [GWh]'))
+    # fig_9.update_layout(
+    #     title='Required capacity of storage [GWh] for 80-100 % coverage of consumption and surplus',
+    #     xaxis=dict(title='Covered consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
+    #     yaxis=dict(title='Required capacity [GWh]'))
 
-    fig_9.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
-    fig_9.update_layout(barmode='group')
-    st.plotly_chart(fig_9)
-    st.dataframe(df)
+    # fig_9.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
+    # fig_9.update_layout(barmode='group')
+    # st.plotly_chart(fig_9)
+    # st.dataframe(df)
 
 
 
