@@ -25,7 +25,7 @@ st.divider()
 # tabs
 # --------------------
 
-tab1, tab2, tab3 = st.tabs(["As-Is-Analysis", "Prognosis", "Storage"])
+tab1, tab2 = st.tabs(["As-Is-Analysis", "Prognosis"])
 
 with tab1:
     st.header('Energy production and consumption')
@@ -47,6 +47,7 @@ with tab1:
         format="%d.%m.%Y",
     )
 
+    
 
 
     #Startzeit des Programms
@@ -58,6 +59,7 @@ with tab1:
 
 
     file_consumption = 'Realisierter_Stromverbrauch_202001010000_202212312359_Viertelstunde.csv'
+    
 
     # Einlesen der Daten aus CSV-Dateien
     production_df = pd.read_csv(file_production, delimiter=';')
@@ -320,7 +322,7 @@ with tab1:
         installed_power = installed_power_dict.get(year, None)
         
         if installed_power is None:
-            print(f"No installed power found for the year {year}.")
+            # print(f"No installed power found for the year {year}.")
             return None
         
         # Filter data for the selected date
@@ -471,37 +473,185 @@ with tab2:
     # show_figure_4()
 
 
-# ------------------------------------------------
-# 2030 production forecast from Noah
-
+#--------------------------------------------------------------------------
+# GOOD SCENARIO METHODS BEGIN
 #--------------------------------------------------------------------------
 
+    def read_load_profile(file_path):
+        # Read the Excel file
+        load_profile_df = pd.read_excel(file_path, skiprows=8)
+        
+        # Rename the columns for clarity
+        load_profile_df.columns = ['Time', 'Weekday_Summer', 'Saturday_Summer', 'Sunday_Summer', 'Weekday_Winter', 'Saturday_Winter', 'Sunday_Winter']
+        
+        # Define a function to replace "24:00:00" with "00:00:00"
+        def replace_24_with_00(time_str):   
+            return time_str.replace('24:00:00', '00:00:00')
 
-      # Funktion
+        # Apply the function to each value in the 'Time' column
+        load_profile_df['Time'] = load_profile_df['Time'].apply(replace_24_with_00)
+
+        # Remove leading and trailing whitespace
+        load_profile_df['Time'] = load_profile_df['Time'].str.strip()
+
+        # Convert the 'Time' column to a DateTime object
+        load_profile_df['Time'] = pd.to_datetime(load_profile_df['Time'], format='%H:%M:%S').dt.time
+
+        # Multiply all values (except 'Time') by 32*10^6
+        cols_to_update = ['Weekday_Summer', 'Saturday_Summer', 'Sunday_Summer', 'Weekday_Winter', 'Saturday_Winter', 'Sunday_Winter']
+        load_profile_df[cols_to_update] = load_profile_df[cols_to_update].applymap(lambda x: x * 32 * 10**6)
+        
+        return load_profile_df
+
+    def plot_renewable_percentage(scaled_production_df, verbrauch2030df):
+        total_scaled_renewable_production = scaled_production_df[[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE]].sum(axis=1)
+        total_consumption = verbrauch2030df['Verbrauch [MWh]']
+
+        # Berechnung der prozentualen Anteile der erneuerbaren Energieerzeugung am Gesamtverbrauch
+        percent_renewable = total_scaled_renewable_production / total_consumption * 100
+
+        counts, intervals = np.histogram(percent_renewable, bins=np.arange(0, 330, 1))  # Use NumPy to calculate the histogram of the percentage distribution
+
+        x = intervals[:-1]  # Define the x-axis values as the bin edges
+        labels = [f'{i}%' for i in range(0, 330, 1)]  # Create labels for x-axis ticks (von 0 bis 111 in Einzelnschritten)
+
+        fig = go.Figure(data=[go.Bar(x=x, y=counts)])  # Create a bar chart using Plotly
+        fig.update_layout(
+            xaxis=dict(tickmode='array', tickvals=list(range(0, 330, 5)), ticktext=labels[::5]))  # X-axis label settings
+
+        # Title and axis labels settings
+        fig.update_layout(title='Number of quarter hours in 2030 with 0-330% share of renewable energy',
+                    xaxis_title='Percentage of renewable energy',
+                    yaxis_title='Number of quarter hours')
+
+        st.plotly_chart(fig)
+
+
+        data = []
+
+        for i in range(301):
+            # Zählen die Viertelstunden über oder gleich dem Prozentsatz
+            anzahlViertelstundenProzent = len(percent_renewable[percent_renewable >= i])
+            # Fügen Sie einen Datensatz zum Speichern in die Liste hinzu
+            data.append({'Prozentsatz': i, 'Anzahl_Viertelstunden': anzahlViertelstundenProzent})
+        
+        result_df = pd.DataFrame(data) # DataFrame erstellen
+        
+        fig = go.Figure()
+
+        # Fügen einen Balken für die Anzahl der Viertelstunden für jeden Prozentsatz hinzu
+        fig.add_trace(go.Bar(x=result_df['Prozentsatz'], y=result_df['Anzahl_Viertelstunden']))
+
+        # Aktualisieren Sie das Layout für Titel und Achsenbeschriftungen
+        fig.update_layout(
+            title='Number of quarters with renewable energy generation equal to or greater than consumption in 2030',
+            xaxis=dict(title='Percentage of renewable energy'),
+            yaxis=dict(title='Number of quarter hours')
+        )
+
+        st.plotly_chart(fig)
+
+
+    def plot_energy_data(consumption_df, production_df, selected_date):
+        fig = make_subplots()
+
+        # Add the energy consumption trace
+        fig.add_trace(
+            go.Scatter(
+                x=consumption_df[STARTTIME].dt.strftime('%H:%M'),
+                y=consumption_df['Verbrauch [MWh]'],
+                mode='lines',
+                name='Total Consumption',
+                fill='tozeroy'
+            )
+        )
+
+        # Add the renewable energy production trace
+        fig.add_trace(
+            go.Scatter(
+                x=production_df[STARTTIME].dt.strftime('%H:%M'),
+                y=production_df['Total Production'],
+                mode='lines',
+                name='Total Renewable Production',
+                fill='tozeroy'
+            )
+        )
+
+        fig.update_layout(
+            title=f'Energy Production and Consumption on {selected_date.strftime("%d.%m.%Y")}',
+            xaxis=dict(title='Time (hours)'),
+            yaxis=dict(title='Energy (MWh)'),
+            showlegend=True
+        )
+
+        st.plotly_chart(fig)
+
+    def process_and_plot_2030_dataGut(production_df, consumption_df, load_profile_df, selected_date):
+        
+        # POSITIVE SCENARIO Production based on 2020 and BMWK goals
+        production_2020df = production_df[production_df[DATE].dt.year == 2020]
+        prognoseErzeugung2030_positive_df = production_2020df.copy()
+        #prognoseErzeugung2030_positive_df['Date'] = prognoseErzeugung2030_positive_df['Date'].map(lambda x: x.replace(year=2030))
+        prognoseErzeugung2030_positive_df[DATE] = prognoseErzeugung2030_positive_df[DATE].map(
+        lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+
+        windonshore_2030_factor_2020_positive = 2.13589  # 
+        windoffshore_2030_factor_2020_postive = 3.92721  #
+        pv_2030_factor_2020_postive = 4.2361193  # assumig PV will increase by 423%
+
+        def scale_2030_factors(df,windonshore_2030_factor_2020_positive,windoffshore_2030_factor_2020_postive,
+                                            pv_2030_factor_2020_postive):
+            df_copy = df.copy()
+            df_copy[WIND_ONSHORE] *= windonshore_2030_factor_2020_positive
+            df_copy[WIND_OFFSHORE] *= windoffshore_2030_factor_2020_postive
+            df_copy[PHOTOVOLTAIC] *= pv_2030_factor_2020_postive
+            df_copy['Total Production'] = df_copy[[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE]].sum(axis=1)
+            return df_copy
+
+        # Scale the data by the factors
+        scaled_production_df = scale_2030_factors(prognoseErzeugung2030_positive_df, windonshore_2030_factor_2020_positive,windoffshore_2030_factor_2020_postive,
+                                            pv_2030_factor_2020_postive)
+
+        # Filter the data for the selected date
+        scaled_selected_production_df = scaled_production_df[scaled_production_df[DATE] == selected_date]
+
+        verbrauch2030df = energyConsumption(consumption_df)
+
+        selected_consumption2030df = verbrauch2030df[verbrauch2030df[DATE] == selected_date]
+        scaled_selected_production_df = scaled_selected_production_df[scaled_selected_production_df[DATE] == selected_date]
+
+        plot_energy_data(selected_consumption2030df, scaled_selected_production_df, selected_date)
+        plot_renewable_percentage(scaled_production_df, verbrauch2030df)
+
+        return scaled_production_df, verbrauch2030df
+
+    # Funktion zur Berechnung und Anzeige der aggregierten Daten pro Jahr
+    # Author: Bjarne, Noah
     def energyConsumption(consumption_df):
         wärmepumpeHochrechnung2030 = wärmepumpe()
         eMobilitätHochrechnung2030 = eMobilität()
 
-        print('\n', 'wärmepumpeHochrechnung2030', f"{wärmepumpeHochrechnung2030:,.0f}".replace(",", "."))
-        print('\n', 'eMobilitätHochrechnung2030', f"{eMobilitätHochrechnung2030:,.0f}".replace(",", "."))
-
-        verbrauch2022df = consumption_df[consumption_df['Datum'].dt.year == 2022]
+        verbrauch2022df = consumption_df[consumption_df[DATE].dt.year == 2020]
         prognose2030df = verbrauch2022df.copy()
         faktor = faktorRechnung(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030)
-        print(faktor)
+        print("Verbr df:", prognose2030df)
+        print("Faktor: ", faktor)
         # Change the year in 'Datum' column to 2030
-        prognose2030df['Datum'] = prognose2030df['Datum'].map(lambda x: x.replace(year=2030))
+        prognose2030df[DATE] = prognose2030df[DATE].map(lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
 
-        prognose2030df['Verbrauch [MWh]'] = prognose2030df['Gesamt (Netzlast) [MWh] Originalauflösungen'] * faktor
+        prognose2030df['Verbrauch [MWh]'] = prognose2030df[CONSUMPTION] * faktor
 
-        combined_df = pd.concat([verbrauch2022df[['Anfang', 'Gesamt (Netzlast) [MWh] Originalauflösungen']], prognose2030df[['Verbrauch [MWh]']]], axis=1)
-        print(combined_df[['Gesamt (Netzlast) [MWh] Originalauflösungen', 'Verbrauch [MWh]']])
+        combined_df = pd.concat([verbrauch2022df[[STARTTIME, CONSUMPTION]], prognose2030df[['Verbrauch [MWh]']]], axis=1)
+        print("Verbrauch 2030:", prognose2030df['Verbrauch [MWh]'].sum()/1000 , "TWhhusp\n")
+        print("Consumption 2022:", prognose2030df[CONSUMPTION].sum()/1000 , "TWh\n")
 
         return prognose2030df
 
-
     def wärmepumpe():
-        wärmepumpeAnzahl2030 = 500000 * (2030 - 2023)  # 500k pro Jahr bis 2023
+        highScenario = 500000
+        lowScenario = 236000
+        middleScenario = 368000
+        wärmepumpeAnzahl2030 = lowScenario * (2030 - 2023)  # 500k pro Jahr bis 2023
 
         heizstunden = 2000
         nennleistung = 15  # 15kW
@@ -519,19 +669,20 @@ with tab2:
 
         return luftWasserVerbrauch * luftWasserVerhältnisAnzahl + erdwärmeVerbrauch * erdwärmeVerhältnisAnzahl  # kWh
 
-
     # berechnung des Verbrauchs einer Wärmepumpe im Jahr
-    def wärmepumpeVerbrauchImJahr(heizstunden, nennleistung, jaz):
-        # (Heizstunden * Nennleistung) / JAZ = Stromverbrauch pro Jahr
-        return (heizstunden * nennleistung) / jaz
-
+    def wärmepumpeVerbrauchImJahr(heizstunden, nennleistung, jaz): 
+        return (heizstunden * nennleistung) / jaz # (Heizstunden * Nennleistung) / JAZ = Stromverbrauch pro Jahr
 
     def verhältnisAnzahl(wärmepumpeAnzahl2030, verhältnis):
         return wärmepumpeAnzahl2030 * verhältnis
 
 
     def eMobilität():
-        eMobilität2030 = 15000000  # 15mio bis 20230
+        highECars = 15000000
+        lowECars = 8000000
+        middleECars = 11500000
+
+        eMobilität2030 = lowECars  # 15mio bis 20230
         eMobilitätBisher = 1307901  # 1.3 mio
         verbrauchPro100km = 21  # 21kWh
         kilometerProJahr = 15000  # 15.000km
@@ -540,318 +691,342 @@ with tab2:
 
         return (eMobilität2030 - eMobilitätBisher) * eMobilitätVerbrauch
 
-
     def faktorRechnung(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030):
-        gesamtVerbrauch2022 = otherFactors() + verbrauch2022df[
-            'Gesamt (Netzlast) [MWh] Originalauflösungen'].sum() * 1000  # mal1000 weil MWh -> kWh
-        print('\n', 'gesamtVerbrauch2022', f"{gesamtVerbrauch2022:,.0f}".replace(",", "."))
-        return (gesamtVerbrauch2022 + wärmepumpeHochrechnung2030 + eMobilitätHochrechnung2030) / gesamtVerbrauch2022
-
+        gesamtVerbrauch2022 = (otherFactors(wärmepumpeHochrechnung2030, verbrauch2022df))*1000000000 + 504515946000 # mal1000 weil MWh -> kWh
+        return (gesamtVerbrauch2022 + wärmepumpeHochrechnung2030 + eMobilitätHochrechnung2030) / (504515946000) #ges Verbrauch 2021
 
     def prognoseRechnung(verbrauch2022df, faktor):
         verbrauch2030df = verbrauch2022df['Verbrauch [kWh]'] * faktor
         return verbrauch2030df
 
+    def otherFactors(wärmepumpeHochrechnung2030, verbrauch2022df):
+        indHigh = (wärmepumpeHochrechnung2030*(1+3/7))*(72/26)
+        indLow = verbrauch2022df[CONSUMPTION].sum()*0.45*0.879/1000000
+        indMiddle = 0
 
-    def otherFactors():
         # positive Faktoren
-        railway = 5000  # kWh
-        batterieProdAndServerRooms = 13000  # kwh
-        powerNetLoss = 1000
+        railway = 5  # TWh
+        powerNetLoss = 1
+        industry = indLow
 
         # negative Faktoren
-        efficiency = 51000
-        other = 6000
-        return railway + batterieProdAndServerRooms + powerNetLoss - efficiency - other
-
-    # ---------------------------------------------
-    # Consumption Forecast
-    st.header('Consumption Forecast')
-    st.write('In the following scenario, we assumed that the consumption will increase by 42.95 TWh compared to 2022 due to the electrification of the transport and heating sector.')
-
-
-    assumptions = [
-        "Consumption of EVs",
-        "Consumption of heat pumps",
-        "Consumption of railway",
-        "Consumption of battery production and server rooms",
-        "Energy loss in the power grid",
-        "Efficiency of the power plants"
-    ]
-
-    delta_values = [
-        43.13, 
-        32.82,
-        5,
-        13,
-        -1,
-        -51
-    ]
-
-    colors = ['green' if delta > 0 else 'red' for delta in delta_values]
-
-    fig_4 = go.Figure(data=go.Bar(x=assumptions, y=delta_values, marker=dict(color=colors)))
-    fig_4.update_layout(
-        title='Expected increase in consumption till 2030 compared to 2021',
-        xaxis=dict(title='Factors'),
-        yaxis=dict(title='Energy consumption in TWh'),
-    )
-
-    # Display the chart in Streamlit
-    st.plotly_chart(fig_4)
-
-    st.markdown("#### Choose your consumption scenario")
-
-    consumption_selection_slider = st.slider('Choose the consumption for 2030 in TWh', 500, 750, 800)
-    st.write("You chose", consumption_selection_slider, "TWh of consumption in 2030")
-
-    # ---------------------------------------------
-    # Best-Case Scenario
-
-    # Display the metrics and delta values
-    st.subheader('Best-Case Scenario')
-    st.write('In the following scenario, we assumed that the expansion targets for wind and photovoltaic energy will be hit until 2030.')
-
-    st.markdown('##### Expansion targets BWMK until 2030')
-
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(label='Wind Onshore', value='115 GW')
-
-    with col2:
-        st.metric(label='Wind Offshore', value='30 GW')
-
-    with col3:
-        st.metric(label='Photovoltaic', value='215 GW')
-
-    start_date = datetime.date(2030, 1, 1)
-    end_date = datetime.date(2030, 12, 31)
-    default_date = datetime.date(2030, 1, 1)
-    st.write("##")
-    input_date = st.date_input(
-        "Select a Date",
-        value = default_date, 
-        min_value=start_date,
-        max_value=end_date,
-        format="DD.MM.YYYY",
-    )
-    selected_date = pd.to_datetime(
-        input_date,
-        format="%d.%m.%Y",
-    )
-
-    # Define a dataframe of the production of 2022
-    production_2022df = production_df[production_df[DATE].dt.year == 2022]
-    prognoseErzeugung2030df = production_2022df.copy()
-    prognoseErzeugung2030df['Datum'] = prognoseErzeugung2030df['Datum'].map(lambda x: x.replace(year=2030))
-
-    # Define a dataframe of the consumption of 2022
-    consumption_2022df = consumption_df[consumption_df[DATE].dt.year == 2022]
-    prognoseVerbrauch2030df = consumption_2022df.copy()
-    prognoseVerbrauch2030df['Datum'] = prognoseVerbrauch2030df['Datum'].map(lambda x: x.replace(year=2030))
-
-
-    def scale_2030_factorsConsumption(df, Verbrauch2022_2030_factor):
-        df_copy = df.copy()
-        df_copy[CONSUMPTION] *= Verbrauch2022_2030_factor
-        return df_copy
-
-
-    # Define the factors
-    # müssen noch angepasst werden
-    windonshore_2030_factor = 2.03563  # assuming Wind Onshore will increase by 203% from 2022 compared to 2030
-    windoffshore_2030_factor = 3.76979  # assuming Wind Offshore will 376% increase
-    pv_2030_factor = 3.5593  # assuming PV will increase by 350%
-
-
-    def scale_2030_factors(df, windonshore_factor, windoffshore_factor, pv_factor):
-        df_copy = df.copy()
-        df_copy[WIND_ONSHORE] *= windonshore_factor
-        df_copy[WIND_OFFSHORE] *= windoffshore_factor
-        df_copy[PHOTOVOLTAIC] *= pv_factor
-        df_copy['Total Production'] = df_copy[columns_to_clean].sum(axis=1)
-        return df_copy
-
-
-    # Scale the data by the factors
-    scaled_production_df = scale_2030_factors(prognoseErzeugung2030df, windonshore_2030_factor, windoffshore_2030_factor,
-                                            pv_2030_factor)
-
-    # Filter the data for the selected date
-    scaled_selected_production_df = scaled_production_df[scaled_production_df[DATE] == selected_date]
-
-    verbrauch2030df = energyConsumption(consumption_df)
-    # scaled_consumption_df = scale_2030_factorsConsumption(prognoseVerbrauch2030df, Verbrauch2022_2030_factor)
-
-    # Filter the data for the selected date
-    # scaled_selected_consumption_df = scaled_consumption_df[scaled_consumption_df[DATE] == selected_date]
-
-    ### subplot only consumption 2030
-
-    ## Plotly daily production and consumption 2030
-
-
-
-    selected_consumption2030df = verbrauch2030df[verbrauch2030df[DATE] == selected_date]
-    scaled_selected_production_df = scaled_selected_production_df[scaled_selected_production_df[DATE] == selected_date]
-
-    fig_5 = make_subplots()
-
-    # Add the energy consumption trace
-    fig_5.add_trace(
-        go.Scatter(
-            x=selected_consumption2030df[STARTTIME].dt.strftime('%H:%M'),
-            y=selected_consumption2030df['Verbrauch [MWh]'] * MWh_to_GWh,
-            mode='lines',
-            name='Total Consumption',
-            fill='tozeroy'
-        )
-    )
-
-    # Add the renewable energy production trace
-    fig_5.add_trace(
-        go.Scatter(
-            x=scaled_selected_production_df[STARTTIME].dt.strftime('%H:%M'),
-            y=scaled_selected_production_df['Total Production'] * MWh_to_GWh,
-            mode='lines',
-            name='Total Renewable Production',
-            fill='tozeroy'
-        )
-    )
-
-    fig_5.update_layout(
-        title=f'Energy Production and Consumption on {selected_date.strftime("%d.%m.%Y")}',
-        xaxis=dict(title='Time (hours)'),
-        yaxis=dict(title='Energy (GWh)'),
-        showlegend=True
-    )
-
-    st.plotly_chart(fig_5)
-
-    # code to do 2030 quarter hours
-    total_scaled_renewable_production = scaled_production_df[columns_to_clean].sum(axis=1)
-    total_consumption = verbrauch2030df['Verbrauch [MWh]']
-
-    # Berechnung der prozentualen Anteile der erneuerbaren Energieerzeugung am Gesamtverbrauch
-    percent_renewable = total_scaled_renewable_production / total_consumption * 100
-
-    counts, intervals = np.histogram(percent_renewable, bins=np.arange(0, 330, 1))  # Use NumPy to calculate the histogram of the percentage distribution
-
-    x = intervals[:-1]  # Define the x-axis values as the bin edges
-    labels = [f'{i}%' for i in range(0, 330, 1)]  # Create labels for x-axis ticks (von 0 bis 111 in Einzelnschritten)
-
-    fig_6 = go.Figure(data=[go.Bar(x=x, y=counts)])  # Create a bar chart using Plotly
-    fig_6.update_layout(
-        xaxis=dict(tickmode='array', tickvals=list(range(0, 330, 5)), ticktext=labels[::5]))  # X-axis label settings
-
-    # Title and axis labels settings
-    fig_6.update_layout(
-        title='Number of quarter hours in 2030 with 0-330% share of renewable energy',
-        xaxis_title='Percentage of renewable energy',
-        yaxis_title='Number of quarter hours'
-    )
-
-
-    st.plotly_chart(fig_6)
-
-    # how many quarter hours are in scaled_production_df
-    print("soviele VS sind in scaled_production_df:")
-    print(len(scaled_selected_production_df))
-    print("Viertelstunden aus 2030 expected 35040 hier: ")
-
-
-
-
-    # Berechnen Sie den prozentualen Anteil der erneuerbaren Energieerzeugung am Verbrauch
-    prozentualerAnteil = total_scaled_renewable_production / verbrauch2030df['Verbrauch [MWh]'] * 100
-    print(percent_renewable)
-
-    # Initialisieren Sie eine Liste für die Datensätze
-    data = []
-
-    # Iterieren Sie über die Prozentsätze von 0 bis 100
-    for i in range(301):
-        # Zählen Sie die Viertelstunden über oder gleich dem Prozentsatz
-        anzahlViertelstundenProzent = len(percent_renewable[percent_renewable >= i])
-
-        # Fügen Sie einen Datensatz zum Speichern in die Liste hinzu
-        data.append({'Prozentsatz': i, 'Anzahl_Viertelstunden': anzahlViertelstundenProzent})
-
-    # Erstellen Sie ein DataFrame aus der Liste
-    result_df = pd.DataFrame(data)
-
-    # Drucken Sie das erstellte DataFrame
-    print(result_df)
-
-    fig_7 = go.Figure()
-
-    # Fügen Sie einen Balken für die Anzahl der Viertelstunden für jeden Prozentsatz hinzu
-    fig_7.add_trace(go.Bar(x=result_df['Prozentsatz'], y=result_df['Anzahl_Viertelstunden']))
-
-    # Aktualisieren Sie das Layout für Titel und Achsenbeschriftungen
-    fig_7.update_layout(
-        title='Number of quarters with renewable energy generation equal to or greater than consumption in 2030',
-        xaxis=dict(title='Percentage of renewable energy'),
-        yaxis=dict(title='Number of quarters')
-    )
-
-    # Zeigen Sie den Plot an
-    st.plotly_chart(fig_7)
-
-#---------------------------------------
-#Storage by Timo
-
-with tab3:  
-    def powerOfStorage(verbrauch_df, erzeugung_df,prozent):
-        # Kopien der DataFrames erstellen, um den Originalinhalt nicht zu verändern
-        verbrauch_copy = verbrauch_df.copy()
-        erzeugung_copy = erzeugung_df.copy()
+        efficiency = 51
+        other = 6
+
+        return railway  + powerNetLoss - efficiency - other + industry/1000000000
+
+#--------------------------------------------------------------------------
+# GOOD SCENARIO METHODS END
+#--------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------
+# MEDIUM SCENARIO METHODS BEGIN
+#--------------------------------------------------------------------------
+    def process_and_plot_2030_dataMi(production_df, consumption_df, load_profile_df, selected_date):
+            
+        # Realistisches Ausbau (based on frauenhofer) Szenario 2030 basierend auf 2022 Wetter (mittleres Wetter) ((2021 wäre schlechtes Wetter))
+        production_2022df = production_df[production_df[DATE].dt.year == 2022]
+        prognoseErzeugung2030_realistic_2022_df = production_2022df.copy()
+        prognoseErzeugung2030_realistic_2022_df[DATE] = prognoseErzeugung2030_realistic_2022_df[DATE].map(lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+
+        windonshore_2030_factor_2022_realistic = 1.2921  # 
+        windoffshore_2030_factor_2022_realistic = 2.13621  # 
+        pv_2030_factor_2022_realistic = 1.821041  # assumig PV will increase by 182%
+
+        def scale_2030_factors(df,windonshore_2030_factor_2022_realistic,windoffshore_2030_factor_2022_realistic,
+                                            pv_2030_factor_2022_realistic):
+            df_copy = df.copy()
+            df_copy[WIND_ONSHORE] *= windonshore_2030_factor_2022_realistic
+            df_copy[WIND_OFFSHORE] *= windoffshore_2030_factor_2022_realistic
+            df_copy[PHOTOVOLTAIC] *= pv_2030_factor_2022_realistic
+            df_copy['Total Production'] = df_copy[[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE]].sum(axis=1)
+            return df_copy
+
+        # Scale the data by the factors
+        scaled_production_df = scale_2030_factors(prognoseErzeugung2030_realistic_2022_df, windonshore_2030_factor_2022_realistic,windoffshore_2030_factor_2022_realistic,
+                                            pv_2030_factor_2022_realistic)
+
+        # Filter the data for the selected date
+        scaled_selected_production_df = scaled_production_df[scaled_production_df[DATE] == selected_date]
+
+        verbrauch2030df = energyConsumption2(consumption_df)
+
+        selected_consumption2030df = verbrauch2030df[verbrauch2030df[DATE] == selected_date]
+        scaled_selected_production_df = scaled_selected_production_df[scaled_selected_production_df[DATE] == selected_date]
         
+        plot_energy_data(selected_consumption2030df, scaled_selected_production_df, selected_date) # Plot the data
+        plot_renewable_percentage(scaled_production_df, verbrauch2030df) # Plot the renewable percentage
+
+        return scaled_production_df, verbrauch2030df
+
+    # Funktion zur Berechnung und Anzeige der aggregierten Daten pro Jahr
+    # Author: Bjarne, Noah
+    def energyConsumption2(consumption_df):
+        wärmepumpeHochrechnung2030 = wärmepumpe2()
+        eMobilitätHochrechnung2030 = eMobilität2()
+
+        verbrauch2022df = consumption_df[consumption_df[DATE].dt.year == 2022]
+        prognose2030df = verbrauch2022df.copy()
+        faktor = faktorRechnung2(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030)
+
+        prognose2030df[DATE] = prognose2030df[DATE].map(lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+
+        prognose2030df['Verbrauch [MWh]'] = prognose2030df[CONSUMPTION] * faktor
+
+        combined_df = pd.concat([verbrauch2022df[[STARTTIME, CONSUMPTION]], prognose2030df[['Verbrauch [MWh]']]], axis=1)
+
+        return prognose2030df
+
+    def wärmepumpe2():
+        highScenario = 500000
+        lowScenario = 236000
+        middleScenario = 368000
+        wärmepumpeAnzahl2030 = middleScenario * (2030 - 2023)  # 500k pro Jahr bis 2023
+
+        heizstunden = 2000
+        nennleistung = 15  # 15kW
+        luftWasserVerhältnis = 206 / 236
+        erdwärmeVerhältnis = 30 / 236
+        luftWasserJAZ = 3.1
+        erdwärmeJAZ = 4.1
+
+        # Berechnung der einzelnen Pumpe
+        luftWasserVerbrauch = wärmepumpeVerbrauchImJahr2(heizstunden, nennleistung, luftWasserJAZ)  # in kW/h
+        erdwärmeVerbrauch = wärmepumpeVerbrauchImJahr2(heizstunden, nennleistung, erdwärmeJAZ)  # in kW/h
+
+        luftWasserVerhältnisAnzahl = verhältnisAnzahl2(wärmepumpeAnzahl2030, luftWasserVerhältnis)
+        erdwärmeVerhältnisAnzahl = verhältnisAnzahl2(wärmepumpeAnzahl2030, erdwärmeVerhältnis)
+
+        return luftWasserVerbrauch * luftWasserVerhältnisAnzahl + erdwärmeVerbrauch * erdwärmeVerhältnisAnzahl  # kWh
+
+    # berechnung des Verbrauchs einer Wärmepumpe im Jahr
+    def wärmepumpeVerbrauchImJahr2(heizstunden, nennleistung, jaz): 
+        return (heizstunden * nennleistung) / jaz # (Heizstunden * Nennleistung) / JAZ = Stromverbrauch pro Jahr
+
+    def verhältnisAnzahl2(wärmepumpeAnzahl2030, verhältnis):
+        return wärmepumpeAnzahl2030 * verhältnis
+
+    def eMobilität2():
+        highECars = 15000000
+        lowECars = 8000000
+        middleECars = 11500000
+
+        eMobilität2030 = middleECars  # 15mio bis 20230
+        eMobilitätBisher = 1307901  # 1.3 mio
+        verbrauchPro100km = 21  # 21kWh
+        kilometerProJahr = 15000  # 15.000km
+
+        eMobilitätVerbrauch = (verbrauchPro100km / 100) * kilometerProJahr  # kWh
+
+        return (eMobilität2030 - eMobilitätBisher) * eMobilitätVerbrauch
+
+    def faktorRechnung2(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030):
+        gesamtVerbrauch2022 = (otherFactors2(wärmepumpeHochrechnung2030, verbrauch2022df))*1000000000 + 504515946000 # mal1000 weil MWh -> kWh
+        return (gesamtVerbrauch2022 + wärmepumpeHochrechnung2030 + eMobilitätHochrechnung2030) / (504515946000) #ges Verbrauch 2021
+
+    def prognoseRechnung2(verbrauch2022df, faktor):
+        verbrauch2030df = verbrauch2022df['Verbrauch [kWh]'] * faktor
+        return verbrauch2030df
+
+    def otherFactors2(wärmepumpeHochrechnung2030, verbrauch2022df):
+        indHigh = (wärmepumpeHochrechnung2030*(1+3/7))*(72/26)
+        indLow = verbrauch2022df[CONSUMPTION].sum()*0.45*0.879/1000000
+        indMiddle = 0
+
+        # positive Faktoren
+        railway = 5  # TWh
+        powerNetLoss = 1
+        industry = indMiddle
+
+        # negative Faktoren
+        efficiency = 51
+        other = 6
+
+        return railway  + powerNetLoss - efficiency - other + industry/1000000000
+
+#--------------------------------------------------------------------------
+# MEDIUM SCENARIO METHODS END
+#--------------------------------------------------------------------------
+#--------------------------------------------------------------------------
+# PESSIMISTIC SCENARIO METHODS BEGIN
+#--------------------------------------------------------------------------
+    def process_and_plot_2030_dataSchlecht(production_df, consumption_df, load_profile_df, selected_date):
+        
+        # Realistisches Ausbau (based on frauenhofer) Szenario 2030 basierend auf 2022 Wetter (mittleres Wetter) ((2021 wäre schlechtes Wetter))
+        production_2022df = production_df[production_df[DATE].dt.year == 2022]
+        prognoseErzeugung2030_realistic_2022_df = production_2022df.copy()
+        prognoseErzeugung2030_realistic_2022_df[DATE] = prognoseErzeugung2030_realistic_2022_df[DATE].map(lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+
+        windonshore_2030_factor_2022_realistic = 1.2921  # 
+        windoffshore_2030_factor_2022_realistic = 2.13621  # 
+        pv_2030_factor_2022_realistic = 1.821041  # assumig PV will increase by 182%
+
+        def scale_2030_factors(df,windonshore_2030_factor_2022_realistic,windoffshore_2030_factor_2022_realistic,
+                                            pv_2030_factor_2022_realistic):
+            df_copy = df.copy()
+            df_copy[WIND_ONSHORE] *= windonshore_2030_factor_2022_realistic
+            df_copy[WIND_OFFSHORE] *= windoffshore_2030_factor_2022_realistic
+            df_copy[PHOTOVOLTAIC] *= pv_2030_factor_2022_realistic
+            df_copy['Total Production'] = df_copy[[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE]].sum(axis=1)
+            return df_copy
+
+        # Scale the data by the factors
+        scaled_production_df = scale_2030_factors(prognoseErzeugung2030_realistic_2022_df, windonshore_2030_factor_2022_realistic,windoffshore_2030_factor_2022_realistic,
+                                            pv_2030_factor_2022_realistic)
+
+        # Filter the data for the selected date
+        scaled_selected_production_df = scaled_production_df[scaled_production_df[DATE] == selected_date]
+
+        verbrauch2030df = energyConsumption1(consumption_df)
+
+        selected_consumption2030df = verbrauch2030df[verbrauch2030df[DATE] == selected_date]
+        scaled_selected_production_df = scaled_selected_production_df[scaled_selected_production_df[DATE] == selected_date]
+
+        plot_energy_data(selected_consumption2030df, scaled_selected_production_df, selected_date)
+        plot_renewable_percentage(scaled_production_df, verbrauch2030df)
+
+        return scaled_production_df, verbrauch2030df
+
+    # Funktion zur Berechnung und Anzeige der aggregierten Daten pro Jahr
+    # Author: Bjarne, Noah
+    def energyConsumption1(consumption_df):
+        wärmepumpeHochrechnung2030 = wärmepumpe1()
+        eMobilitätHochrechnung2030 = eMobilität1()
+
+        verbrauch2022df = consumption_df[consumption_df[DATE].dt.year == 2022]
+        prognose2030df = verbrauch2022df.copy()
+        faktor = faktorRechnung1(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030)
+
+        prognose2030df[DATE] = prognose2030df[DATE].map(lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+
+        prognose2030df['Verbrauch [MWh]'] = prognose2030df[CONSUMPTION] * faktor
+
+        combined_df = pd.concat([verbrauch2022df[[STARTTIME, CONSUMPTION]], prognose2030df[['Verbrauch [MWh]']]], axis=1)
+
+        return prognose2030df
+
+    def wärmepumpe1():
+        highScenario = 500000
+        lowScenario = 236000
+        middleScenario = 368000
+        wärmepumpeAnzahl2030 = highScenario * (2030 - 2023)  # 500k pro Jahr bis 2023
+
+        heizstunden = 2000
+        nennleistung = 15  # 15kW
+        luftWasserVerhältnis = 206 / 236
+        erdwärmeVerhältnis = 30 / 236
+        luftWasserJAZ = 3.1
+        erdwärmeJAZ = 4.1
+
+        # Berechnung der einzelnen Pumpe
+        luftWasserVerbrauch = wärmepumpeVerbrauchImJahr1(heizstunden, nennleistung, luftWasserJAZ)  # in kW/h
+        erdwärmeVerbrauch = wärmepumpeVerbrauchImJahr1(heizstunden, nennleistung, erdwärmeJAZ)  # in kW/h
+
+        luftWasserVerhältnisAnzahl = verhältnisAnzahl1(wärmepumpeAnzahl2030, luftWasserVerhältnis)
+        erdwärmeVerhältnisAnzahl = verhältnisAnzahl1(wärmepumpeAnzahl2030, erdwärmeVerhältnis)
+
+        return luftWasserVerbrauch * luftWasserVerhältnisAnzahl + erdwärmeVerbrauch * erdwärmeVerhältnisAnzahl  # kWh
+
+    # berechnung des Verbrauchs einer Wärmepumpe im Jahr
+    def wärmepumpeVerbrauchImJahr1(heizstunden, nennleistung, jaz): 
+        return (heizstunden * nennleistung) / jaz # (Heizstunden * Nennleistung) / JAZ = Stromverbrauch pro Jahr
+
+    def verhältnisAnzahl1(wärmepumpeAnzahl2030, verhältnis):
+        return wärmepumpeAnzahl2030 * verhältnis
+
+    def eMobilität1():
+        highECars = 15000000
+        lowECars = 8000000
+        middleECars = 11500000
+
+        eMobilität2030 = highECars  # 15mio bis 20230
+        eMobilitätBisher = 1307901  # 1.3 mio
+        verbrauchPro100km = 21  # 21kWh
+        kilometerProJahr = 15000  # 15.000km
+
+        eMobilitätVerbrauch = (verbrauchPro100km / 100) * kilometerProJahr  # kWh
+
+        return (eMobilität2030 - eMobilitätBisher) * eMobilitätVerbrauch
+
+    def faktorRechnung1(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030):
+        gesamtVerbrauch2022 = (otherFactors1(wärmepumpeHochrechnung2030, verbrauch2022df))*1000000000 + 504515946000 # mal1000 weil MWh -> kWh
+        return (gesamtVerbrauch2022 + wärmepumpeHochrechnung2030 + eMobilitätHochrechnung2030) / (504515946000) #ges Verbrauch 2021
+
+    def prognoseRechnung1(verbrauch2022df, faktor):
+        verbrauch2030df = verbrauch2022df['Verbrauch [kWh]'] * faktor
+        return verbrauch2030df
+
+    def otherFactors1(wärmepumpeHochrechnung2030, verbrauch2022df):
+        indHigh = (wärmepumpeHochrechnung2030*(1+3/7))*(72/26)
+        indLow = verbrauch2022df[CONSUMPTION].sum()*0.45*0.879/1000000
+        indMiddle = 0
+
+        # positive Faktoren
+        railway = 5  # TWh
+        powerNetLoss = 1
+        industry = indHigh
+
+        # negative Faktoren
+        efficiency = 51
+        other = 6
+
+        return railway  + powerNetLoss - efficiency - other + industry/1000000000
+#--------------------------------------------------------------------------
+# PESSIMISTIC SCENARIO METHODS END
+#--------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------
+# STORAGE METHODS BY TIMO BEGIN
+#--------------------------------------------------------------------------
+
+    def powerOfStorage(expected_yearly_consumption, expected_yearly_production,prozent):
+        # Kopien der DataFrames erstellen, um den Originalinhalt nicht zu verändern
+        verbrauch_copy = expected_yearly_consumption.copy()
+        erzeugung_copy = expected_yearly_production.copy()
+      
         # Setzen des Datums als Index für die einfache Berechnung der Differenz
         erzeugung_copy.set_index('Datum', inplace=True)
         verbrauch_copy.set_index('Datum', inplace=True)
-        
+      
         # Berechnung der Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
         differenz =(verbrauch_copy['Verbrauch [MWh]'] *prozent)- erzeugung_copy['Total Production']
-        
+      
         # Neuer DataFrame für die Differenz erstellen
         differenz_data = pd.DataFrame({'Differenz': differenz})
-        
+      
         # Sortieren des DataFrames nach der Spalte 'Differenz'
         differenz_data_sorted = differenz_data.sort_values(by='Differenz', ascending=False)
-        
+      
         # Mittelwert der ersten 100 größten Differenzen berechnen
         mean_top_100 = differenz_data_sorted.head(100)['Differenz'].mean()
         power_in_GW =mean_top_100 /(0.25*1000) #Umrechnung des Mittelwerts in GW und Leistung
-        
+      
         return differenz_data_sorted,power_in_GW
-    
-    def powerOfStorageforsurplus(verbrauch_df, erzeugung_df,prozent):
+  
+    def powerOfStorageforsurplus(expected_yearly_consumption, expected_yearly_production,prozent):
         # Kopien der DataFrames erstellen, um den Originalinhalt nicht zu verändern
-        verbrauch_copy = verbrauch_df.copy()
-        erzeugung_copy = erzeugung_df.copy()
-        
+        verbrauch_copy = expected_yearly_consumption.copy()
+        erzeugung_copy = expected_yearly_production.copy()
+      
         # Setzen des Datums als Index für die einfache Berechnung der Differenz
         erzeugung_copy.set_index('Datum', inplace=True)
         verbrauch_copy.set_index('Datum', inplace=True)
-        
+      
         # Berechnung der Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
         differenz =erzeugung_copy['Total Production']-(verbrauch_copy['Verbrauch [MWh]']*prozent)
-        
+      
         # Neuer DataFrame für die Differenz erstellen
         differenz_data = pd.DataFrame({'Differenz': differenz})
-        
+      
         # Sortieren des DataFrames nach der Spalte 'Differenz'
         differenz_data_sorted = differenz_data.sort_values(by='Differenz', ascending=False)
-        
-    
-        
+      
+  
+      
         # Mittelwert der ersten 100 größten Differenzen berechnen
         mean_top_100 = differenz_data_sorted.head(100)['Differenz'].mean()
         power_in_GW =mean_top_100 /(0.25*1000) #Umrechnung des Mittelwerts in GW und Leistung
-        
+      
         return differenz_data_sorted,power_in_GW 
 
 
@@ -913,59 +1088,10 @@ with tab3:
                         else:
                             capacity_value -= (value['Differenz'] * efficencie)
                         # print(f"Füge {abs(value['Differenz'])} MWh dem Speicher hinzu. Aktuelle Kapazität: {capacity_value} MWh")
+            
 
             return capacity_value, start_capacity, energieSurPlus
 
-
-
-    #Evtuell auch gut geeignet
-    def capacity2(verbrauch_df, erzeugung_df, prozent):
-        verbrauch_copy = verbrauch_df.copy()
-        erzeugung_copy = erzeugung_df.copy()
-        capacity_value = 0  # Verwende den übergebenen Startwert der Kapazität
-        maxnegativ=0
-        maxpositiv=0
-
-        # Setze das Datum als Index für die einfache Berechnung der Differenz
-        erzeugung_copy.set_index('Datum', inplace=True)
-        verbrauch_copy.set_index('Datum', inplace=True)
-
-        # Berechne die Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
-        differenz = (verbrauch_copy['Verbrauch [MWh]']) * prozent - erzeugung_copy['Total Production']
-        differenz_data = pd.DataFrame({'Differenz': differenz})
-
-        
-        
-        for index, value in differenz_data.iterrows():
-            # Wenn die Differenz positiv ist, entnehme der Kapazität
-            if value['Differenz'] > 0:
-                # Überprüfe, ob die Kapazität leer wird
-                if capacity_value - value['Differenz'] <maxnegativ :
-                    # Berechne den verbleibenden positiven Wert, der noch entnommen werden kann
-                    
-                    capacity_value -= value['Differenz']
-                    maxnegativ=capacity_value
-                                
-                else:
-                    capacity_value -= value['Differenz']
-                    #print(f"Entnehme {value['Differenz']} MWh aus dem Speicher. Aktuelle Kapazität: {capacity_value} MWh")
-
-            # Wenn die Differenz negativ ist, füge der Kapazität hinzu
-            elif value['Differenz'] < 0:
-                if capacity_value - value['Differenz'] >maxpositiv :
-                    
-                    capacity_value -= value['Differenz']
-                    maxpositiv=capacity_value
-                else:
-                    capacity_value -= value['Differenz']
-                
-                
-
-        return maxnegativ,maxpositiv
-
-    #maxnegativ,maxpositiv = capacity2(verbrauch2030df, scaled_production_df, 0.8)
-    #print(maxnegativ)
-    #print(maxpositiv)
 
     def investmentcost(capacity_needed):   #Eventuell noch prozente von Speicherarten hinzufügen
         capacity_in_germany=0  
@@ -987,41 +1113,44 @@ with tab3:
     #----------------------------------
     # Power Calculation
 
-    # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
-    result_differenz_sorted_80, power_in_GW_80 = powerOfStorage(verbrauch2030df, scaled_production_df,0.8)
-    result_differenz_sorted_90, power_in_GW_90 = powerOfStorage(verbrauch2030df, scaled_production_df,0.9)
-    result_differenz_sorted_100, power_in_GW_100 = powerOfStorage(verbrauch2030df, scaled_production_df,1)
+    def calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption):
 
-    #Benötigte Leistung für den Überschuss
-    result_differenz_sorted_surplus_80, power_in_GW_surplus_80 = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.8)
-    result_differenz_sorted_surplus_90, power_in_GW_surplus_90 = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.9)
-    result_differenz_sorted_surplus_100, power_in_GW_surplus_100 = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,1)
+        # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+        result_differenz_sorted_80, power_in_GW_80 = powerOfStorage(expected_yearly_consumption, expected_yearly_production,0.8)
+        result_differenz_sorted_90, power_in_GW_90 = powerOfStorage(expected_yearly_consumption, expected_yearly_production,0.9)
+        result_differenz_sorted_100, power_in_GW_100 = powerOfStorage(expected_yearly_consumption, expected_yearly_production,1)
 
-    # Create a DataFrame with the power values for consumption and surplus
-    df = pd.DataFrame({
-        'Percentage': ['80%', '90%', '100%'],
-        'Power in GW (Consumption)': [power_in_GW_80, power_in_GW_90, power_in_GW_100],
-        'Power in GW (Surplus)': [power_in_GW_surplus_80, power_in_GW_surplus_90, power_in_GW_surplus_100]
-    })
+        #Benötigte Leistung für den Überschuss
+        result_differenz_sorted_surplus_80, power_in_GW_surplus_80 = powerOfStorageforsurplus(expected_yearly_consumption, expected_yearly_production,0.8)
+        result_differenz_sorted_surplus_90, power_in_GW_surplus_90 = powerOfStorageforsurplus(expected_yearly_consumption, expected_yearly_production,0.9)
+        result_differenz_sorted_surplus_100, power_in_GW_surplus_100 = powerOfStorageforsurplus(expected_yearly_consumption, expected_yearly_production,1)
 
-    percentages = ['80%', '90%', '100%']
+            # Create a DataFrame with the power values for consumption and surplus
+        df = pd.DataFrame({
+            'Percentage': ['80%', '90%', '100%'],
+            'Power in GW (Consumption)': [power_in_GW_80, power_in_GW_90, power_in_GW_100],
+            'Power in GW (Surplus)': [power_in_GW_surplus_80, power_in_GW_surplus_90, power_in_GW_surplus_100]
+        })
 
-    fig_8 = go.Figure(data=[
-        go.Bar(name='Power in GW (Consumption)', x=percentages, y=[power_in_GW_80, power_in_GW_90, power_in_GW_100]),
-        go.Bar(name='Power in GW (Surplus)', x=percentages, y=[power_in_GW_surplus_80, power_in_GW_surplus_90, power_in_GW_surplus_100])
-    ])
+        percentages = ['80%', '90%', '100%']
 
-    fig_8.update_layout(
-        title='Required power of storage [GW] for 80-100 % coverage of consumption and surplus',
-        xaxis=dict(title='Covered Consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
-        yaxis=dict(title='Required power of storage [GW]'))
+        fig = go.Figure(data=[
+            go.Bar(name='Power in GW (Consumption)', x=percentages, y=[power_in_GW_80, power_in_GW_90, power_in_GW_100]),
+            go.Bar(name='Power in GW (Surplus)', x=percentages, y=[power_in_GW_surplus_80, power_in_GW_surplus_90, power_in_GW_surplus_100])
+        ])
+
+        fig.update_layout(
+            title='Required power of storage [GW] for 80-100 % coverage of consumption and surplus',
+            xaxis=dict(title='Covered Consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
+            yaxis=dict(title='Required power of storage [GW]'))
 
 
-    fig_8.update_layout(barmode='group')
-    fig_8.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
-    st.plotly_chart(fig_8)
+        fig.update_layout(barmode='group')
+        fig.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
+        st.plotly_chart(fig)
 
-    st.dataframe(df)
+        st.dataframe(df)
+
 
 
     #----------------------------------
@@ -1059,43 +1188,177 @@ with tab3:
     # st.dataframe(df)
 
 
-
-# Ausgabe des sortierten DataFrames
-print("Sortiertes DataFrame nach Differenz:")
-print(result_differenz_sorted_80)
-
-# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
-print("Leistung der Speicher für 80% Dekung in GW:", power_in_GW_80)
-
-    # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
-
-# Ausgabe des sortierten DataFrames
-print("Sortiertes DataFrame nach Differenz:")
-print(result_differenz_sorted_90)
-
-# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
-print("Leistung der Speicher für 90% Dekung in GW:", power_in_GW_90)
-
-# Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
-result_differenz_sorted_100, power_in_GW_100 = powerOfStorage(verbrauch2030df, scaled_production_df,1)
-
-# Ausgabe des sortierten DataFrames
-print("Sortiertes DataFrame nach Differenz:")
-print(result_differenz_sorted_100)
-
-# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
-print("Leistung der Speicher für 100% Dekung in GW:", power_in_GW_100) 
-
-#Benötigte Leistung für den Überschuss
-
-# Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
-result_differenz_sorted_surplus, power_in_GW_surplus = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.8)
-
-# Ausgabe des sortierten DataFrames
-print("Sortiertes DataFrame nach Differenz:")
-print(result_differenz_sorted_surplus)
-
-# Ausgabe des Mittelwerts der ersten 100 größten Differenzen
-print("Leistung der Speicher für die Überschussaufnahme in GW:", power_in_GW_surplus)
+#--------------------------------------------------------------------------
+# STORAGE METHODS BY TIMO END
+#--------------------------------------------------------------------------
 
 
+    # Consumption Forecast
+    st.header('Consumption Forecast')
+    st.write('In the following scenario, we assumed that the consumption will increase by 42.95 TWh compared to 2022 due to the electrification of the transport and heating sector.')
+
+
+    assumptions = [
+        "Consumption of EVs",
+        "Consumption of heat pumps",
+        "Consumption of railway",
+        "Consumption of battery production and server rooms",
+        "Energy loss in the power grid",
+        "Efficiency of the power plants"
+    ]
+
+    delta_values = [
+        43.13, 
+        32.82,
+        5,
+        13,
+        -1,
+        -51
+    ]
+
+    colors = ['green' if delta > 0 else 'red' for delta in delta_values]
+
+    fig_4 = go.Figure(data=go.Bar(x=assumptions, y=delta_values, marker=dict(color=colors)))
+    fig_4.update_layout(
+        title='Expected increase in consumption till 2030 compared to 2021',
+        xaxis=dict(title='Factors'),
+        yaxis=dict(title='Energy consumption in TWh'),
+    )
+
+    # Display the chart in Streamlit
+    st.plotly_chart(fig_4)
+
+    st.markdown("#### Choose your consumption scenario")
+
+    consumption_selection_slider = st.slider('Choose the consumption for 2030 in TWh', 500, 750, 800)
+    st.write("You chose", consumption_selection_slider, "TWh of consumption in 2030")
+
+#--------------------------------------------------------------------------
+# SCENARIOs STREAMLIT DISPLAY BEGIN
+#--------------------------------------------------------------------------
+
+
+    # Display the metrics and delta values
+    st.subheader('Optimistic Scenario')
+    st.write('In the following scenario, we assumed that the expansion targets for wind and photovoltaic energy will be hit until 2030.')
+
+    st.markdown('##### Expansion targets BWMK until 2030')
+
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(label='Wind Onshore', value='115 GW')
+
+    with col2:
+        st.metric(label='Wind Offshore', value='30 GW')
+
+    with col3:
+        st.metric(label='Photovoltaic', value='215 GW')
+
+    start_date = datetime.date(2030, 1, 1)
+    end_date = datetime.date(2030, 12, 31)
+    default_date = datetime.date(2030, 1, 1)
+    st.write("##")
+    input_date = st.date_input(
+        "Select a Date",
+        value = default_date, 
+        min_value=start_date,
+        max_value=end_date,
+        format="DD.MM.YYYY",
+    )
+    selected_date = pd.to_datetime(
+        input_date,
+        format="%d.%m.%Y",
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        # st.write('In the following scenario, we assumed that the expansion targets for wind and photovoltaic energy will be hit until 2030.')
+
+        # st.markdown('##### Expansion targets BWMK until 2030')
+
+
+        # col1_in, col2_in, col3_in = st.columns(3)
+
+        # with col1_in:
+        #     st.metric(label='Wind Onshore', value='115 GW')
+
+        # with col2_in:
+        #     st.metric(label='Wind Offshore', value='30 GW')
+
+        # with col3_in:
+        #     st.metric(label='Photovoltaic', value='215 GW')
+
+        
+        load_profile_df = read_load_profile('Lastprofile_SWKiel.xls')
+        date = selected_date
+
+        # GOOD SCENARIO Function Call
+        expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataGut(production_df, consumption_df, load_profile_df, date)
+        st.subheader('Optimistic Storage Prognosis')
+        calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
+
+    with col2:
+        # MEDIUM SCENARIO Function Call
+        expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataMi(production_df, consumption_df, load_profile_df, date)
+        st.subheader('Medium Storage Scenario')
+        calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
+
+    with col3:
+        # PESSIMISTIC SCENARIO Function Call
+        expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataSchlecht(production_df, consumption_df, load_profile_df, date)
+        st.subheader('Pessimistic Storage Prognosis')
+        calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
+
+#--------------------------------------------------------------------------
+# SCENARIOs STREAMLIT DISPLAY END
+#--------------------------------------------------------------------------
+
+#---------------------------------------------------------
+# STORAGE PRINT OUTS TIMO BEGIN
+#---------------------------------------------------------
+
+
+# # Ausgabe des sortierten DataFrames
+# print("Sortiertes DataFrame nach Differenz:")
+# print(result_differenz_sorted_80)
+
+# # Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+# print("Leistung der Speicher für 80% Dekung in GW:", power_in_GW_80)
+
+#     # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+
+# # Ausgabe des sortierten DataFrames
+# print("Sortiertes DataFrame nach Differenz:")
+# print(result_differenz_sorted_90)
+
+# # Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+# print("Leistung der Speicher für 90% Dekung in GW:", power_in_GW_90)
+
+# # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+# result_differenz_sorted_100, power_in_GW_100 = powerOfStorage(verbrauch2030df, scaled_production_df,1)
+
+# # Ausgabe des sortierten DataFrames
+# print("Sortiertes DataFrame nach Differenz:")
+# print(result_differenz_sorted_100)
+
+# # Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+# print("Leistung der Speicher für 100% Dekung in GW:", power_in_GW_100) 
+
+# #Benötigte Leistung für den Überschuss
+
+# # Verwendung der Funktion mit den entsprechenden DataFrames verbrauch2030df und scaled_production_df
+# result_differenz_sorted_surplus, power_in_GW_surplus = powerOfStorageforsurplus(verbrauch2030df, scaled_production_df,0.8)
+
+# # Ausgabe des sortierten DataFrames
+# print("Sortiertes DataFrame nach Differenz:")
+# print(result_differenz_sorted_surplus)
+
+# # Ausgabe des Mittelwerts der ersten 100 größten Differenzen
+# print("Leistung der Speicher für die Überschussaufnahme in GW:", power_in_GW_surplus)
+
+#---------------------------------------------------------
+# STORAGE PRINT OUTS TIMO END
+#---------------------------------------------------------

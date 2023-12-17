@@ -185,16 +185,16 @@ def energyConsumption(consumption_df):
     print('\n', 'wärmepumpeHochrechnung2030', f"{wärmepumpeHochrechnung2030:,.0f}".replace(",", "."))
     print('\n', 'eMobilitätHochrechnung2030', f"{eMobilitätHochrechnung2030:,.0f}".replace(",", "."))
 
-    verbrauch2022df = consumption_df[consumption_df['Datum'].dt.year == 2021]
-    prognose2030df = verbrauch2022df.copy()
-    faktor = faktorRechnung(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030)
+    verbrauch2021df = consumption_df[consumption_df['Datum'].dt.year == 2021]
+    prognose2030df = verbrauch2021df.copy()
+    faktor = faktorRechnung(verbrauch2021df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030)
     print(faktor)
     # Change the year in 'Datum' column to 2030
     prognose2030df['Datum'] = prognose2030df['Datum'].map(lambda x: x.replace(year=2030))
 
     prognose2030df['Verbrauch [MWh]'] = prognose2030df['Consumption'] * faktor
 
-    combined_df = pd.concat([verbrauch2022df[['Starttime', 'Consumption']], prognose2030df[['Verbrauch [MWh]']]], axis=1)
+    combined_df = pd.concat([verbrauch2021df[['Starttime', 'Consumption']], prognose2030df[['Verbrauch [MWh]']]], axis=1)
     #print(combined_df[['Gesamt (Netzlast) [MWh] Originalauflösungen', 'Verbrauch [MWh]']])
 
     print("Verbrauch 2030:", prognose2030df['Verbrauch [MWh]'].sum()/1000 , "TWhhusp\n")
@@ -239,13 +239,13 @@ def eMobilität():
 
     return (eMobilität2030 - eMobilitätBisher) * eMobilitätVerbrauch
 
-def faktorRechnung(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030):
-    gesamtVerbrauch2022 = (otherFactors(wärmepumpeHochrechnung2030))*1000000000 + verbrauch2022df['Consumption'].sum() * 1000  # mal1000 weil MWh -> kWh
+def faktorRechnung(verbrauch2021df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030):
+    gesamtVerbrauch2022 = (otherFactors(wärmepumpeHochrechnung2030))*1000000000 + verbrauch2021df['Consumption'].sum() * 1000  # mal1000 weil MWh -> kWh
     #print('\n', 'gesamtVerbrauch2022', f"{gesamtVerbrauch2022:,.0f}".replace(",", "."))
-    return (gesamtVerbrauch2022 + wärmepumpeHochrechnung2030 + eMobilitätHochrechnung2030) / (verbrauch2022df['Consumption'].sum()*1000)
+    return (gesamtVerbrauch2022 + wärmepumpeHochrechnung2030 + eMobilitätHochrechnung2030) / (verbrauch2021df['Consumption'].sum()*1000)
 
-def prognoseRechnung(verbrauch2022df, faktor):
-    verbrauch2030df = verbrauch2022df['Verbrauch [kWh]'] * faktor
+def prognoseRechnung(verbrauch2021df, faktor):
+    verbrauch2030df = verbrauch2021df['Verbrauch [kWh]'] * faktor
     return verbrauch2030df
 
 def otherFactors(wärmepumpeHochrechnung2030):

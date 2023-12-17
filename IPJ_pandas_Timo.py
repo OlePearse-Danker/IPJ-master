@@ -669,4 +669,4 @@ def investmentcost(capacity_needed):   #Eventuell noch prozente von Speicherarte
  print(f"Der Preis in Milliarden beträgt:{price}")
 
 
-investmentcost(capacity_value_start)
+# investmentcost(capacity_value_start)
