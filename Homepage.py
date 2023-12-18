@@ -7,6 +7,7 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
+import xlrd
 from plotly.subplots import make_subplots
 
 
@@ -1034,63 +1035,51 @@ with tab2:
     def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
         verbrauch_copy = verbrauch_df.copy()
         erzeugung_copy = erzeugung_df.copy()
-        capacity_value = 0  # Verwende den übergebenen Startwert der Kapazität
-        enrgieSurPlus = 0
-        efficencie = 0.9  # Mittel von Pump und Batteriespeicher
+        capacity_value = 0
+        energieSurPlus = 0
+        efficencie = 0.9
 
-        # Setze das Datum als Index für die einfache Berechnung der Differenz
         erzeugung_copy.set_index('Datum', inplace=True)
         verbrauch_copy.set_index('Datum', inplace=True)
 
-        # Berechne die Differenz zwischen Verbrauch und Erzeugung auf Viertelstundenbasis
         differenz = (verbrauch_copy['Verbrauch [MWh]']) * prozent - erzeugung_copy['Total Production']
         differenz_data = pd.DataFrame({'Differenz': differenz})
 
         total_consumption = verbrauch_copy['Verbrauch [MWh]'].sum()
         total_production = erzeugung_copy['Total Production'].sum()
-
-        # Berechne den prozentualen Anteil des Verbrauchs zur Erzeugung auf Viertelstundenbasis
-        percentage = (total_consumption / total_production)
-
+        
+        percentage = (total_consumption / total_production) * 100
+        
         if percentage <= prozent:
-            percentage = percentage * 100
             print(f"Die Erzeugung kann den angegebenen Verbrauch nicht decken ({percentage}%).")
-            return 0, 0
+            return 0, 0, 0
         else:
             while capacity_value == 0:
-                start_capacity = start_capacity + 1000000
+                start_capacity += 1000000
                 capacity_value = start_capacity
-
+                
                 energieSurPlus = 0
 
-                # Iteriere über die Differenzen
                 for index, value in differenz_data.iterrows():
-                    # Wenn die Differenz positiv ist, entnehme der Kapazität
                     if value['Differenz'] > 0:
-                        # Überprüfe, ob die Kapazität leer wird
                         if capacity_value - value['Differenz'] < 0:
-                            # Berechne den verbleibenden positiven Wert, der noch entnommen werden kann
                             remaining_capacity = capacity_value
                             capacity_value = 0
                             print(f"Speicher ist leer, es konnten nur {capacity_value} MWh entnommen werden.")
                             break
                         else:
                             capacity_value -= value['Differenz']
-                            # print(f"Entnehme {value['Differenz']} MWh aus dem Speicher. Aktuelle Kapazität: {capacity_value} MWh")
 
-                    # Wenn die Differenz negativ ist, füge der Kapazität hinzu
                     elif value['Differenz'] < 0:
-                        # Überprüfe, ob mehr eingespeichert werden kann als der Wert der Kapazität
                         if capacity_value + (abs(value['Differenz']) * efficencie) > start_capacity:
-                            # print("Es kann nicht mehr eingespeichert werden als die verfügbare Kapazität.")
                             energieSurPlus = capacity_value + abs(value['Differenz']) * efficencie - start_capacity
                             capacity_value = start_capacity
                         else:
                             capacity_value -= (value['Differenz'] * efficencie)
-                        # print(f"Füge {abs(value['Differenz'])} MWh dem Speicher hinzu. Aktuelle Kapazität: {capacity_value} MWh")
             
-
             return capacity_value, start_capacity, energieSurPlus
+
+
 
 
     def investmentcost(capacity_needed):   #Eventuell noch prozente von Speicherarten hinzufügen
@@ -1156,36 +1145,57 @@ with tab2:
     #----------------------------------
     # Capacity Calculation
 
-    # st.subheader('Storage Capacity')
+    def calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, scenario_to_plot):
 
-    # capacity_value_80, capacity_value_start_80, energieSurPlus_80 = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
-    # capacity_value_90, capacity_value_start_90, energieSurPlus_90 = capacity(verbrauch2030df, scaled_production_df, 0.9, 10000000)
-    # capacity_value_100, capacity_value_start_100, energieSurPlus_100 = capacity(verbrauch2030df, scaled_production_df, 1, 10000000)
+        st.subheader('Storage Capacity')
 
-    # investment_cost_80 = investmentcost(capacity_value_start_80)
+        # capacity_value_80, capacity_value_start_80,energieSurPlus_80  = capacity(expected_yearly_consumption, expected_yearly_production, 0.8, 10000000)
+        # capacity_value_90, capacity_value_start_90,energieSurPlus_90 = capacity(expected_yearly_consumption, expected_yearly_production, 0.9, 10000000)
+        # capacity_value_100, capacity_value_start_100,energieSurPlus_100 = capacity(expected_yearly_consumption, expected_yearly_production, 1, 10000000)
 
-    # df = pd.DataFrame({
-    #     'Percentage': ['80%', '90%', '100%'],
-    #     'Capacity in GWh (Consumption)': [capacity_value_80, capacity_value_90, capacity_value_100],
-    #     'Capacity in GWh (Surplus)': [energieSurPlus_80, energieSurPlus_90, energieSurPlus_100],
-    #     'Capacity Start Value in GWh': [capacity_value_start_80, capacity_value_start_90, capacity_value_start_100]
-    # })
+        # scenario_to_plot = 'good'
 
+        if scenario_to_plot == 'good':
+            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,11000000,0
+            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,11000000,0
+            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,13000000,0
 
-    # fig_9 = go.Figure(data=[
-    #     go.Bar(name='Capacity in GWh (Consumption)', x=percentages, y=[capacity_value_80, capacity_value_90, capacity_value_100]),
-    #     go.Bar(name='Power in GWh (Surplus)', x=percentages, y=[energieSurPlus_80, energieSurPlus_90, energieSurPlus_100])
-    # ])
+        elif scenario_to_plot == 'mid':
+            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,61000000,0
+            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,108000000,0
+            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,154000000,0
 
-    # fig_9.update_layout(
-    #     title='Required capacity of storage [GWh] for 80-100 % coverage of consumption and surplus',
-    #     xaxis=dict(title='Covered consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
-    #     yaxis=dict(title='Required capacity [GWh]'))
+        elif scenario_to_plot == 'bad':
+            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,171000000,0
+            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,232000000,0
+            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,295000000,0
 
-    # fig_9.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
-    # fig_9.update_layout(barmode='group')
-    # st.plotly_chart(fig_9)
-    # st.dataframe(df)
+        print(capacity_value_start_80)
+        print(capacity_value_start_90)
+        print(capacity_value_start_100)
+        # investment_cost_80 = investmentcost(capacity_value_start_80)
+
+        df = pd.DataFrame({
+            'Percentage': ['80%', '90%', '100%'],
+            'Capacity Start Value in TWh': [capacity_value_start_80 * M_to_TWh, capacity_value_start_90 * M_to_TWh, capacity_value_start_100 * M_to_TWh]
+        })
+
+        y_values = [capacity_value_start_80 * M_to_TWh, capacity_value_start_90 * M_to_TWh, capacity_value_start_100 * M_to_TWh]
+
+        fig = go.Figure(data=[
+            go.Bar(name='Capacity in MWh (Consumption)', x=['80%', '90%', '100%'], y=y_values 
+            )
+        ])
+
+        fig.update_layout(
+            title='Required capacity of storage [TWh] for 80-100 % coverage of consumption and surplus',
+            xaxis=dict(title='Covered consumption by storage [%]', tickmode='array', tickvals=[80, 90, 100]),
+            yaxis=dict(title='Required capacity [TWh]')
+        )
+
+        fig.update_traces(width=3)  # Adjust the width as per your preference (0.5 is an example)
+        st.plotly_chart(fig)
+        st.dataframe(df)
 
 
 #--------------------------------------------------------------------------
@@ -1225,13 +1235,13 @@ with tab2:
         yaxis=dict(title='Energy consumption in TWh'),
     )
 
-    # Display the chart in Streamlit
+    # # Display the chart in Streamlit
     st.plotly_chart(fig_4)
 
-    st.markdown("#### Choose your consumption scenario")
+    # st.markdown("#### Choose your consumption scenario")
 
-    consumption_selection_slider = st.slider('Choose the consumption for 2030 in TWh', 500, 750, 800)
-    st.write("You chose", consumption_selection_slider, "TWh of consumption in 2030")
+    # consumption_selection_slider = st.slider('Choose the consumption for 2030 in TWh', 500, 750, 800)
+    # st.write("You chose", consumption_selection_slider, "TWh of consumption in 2030")
 
 #--------------------------------------------------------------------------
 # SCENARIOs STREAMLIT DISPLAY BEGIN
@@ -1299,18 +1309,21 @@ with tab2:
         expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataGut(production_df, consumption_df, load_profile_df, date)
         st.subheader('Optimistic Storage Prognosis')
         calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
+        calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'good')
 
     with col2:
         # MEDIUM SCENARIO Function Call
         expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataMi(production_df, consumption_df, load_profile_df, date)
         st.subheader('Medium Storage Scenario')
         calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
+        calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'mid')
 
     with col3:
         # PESSIMISTIC SCENARIO Function Call
         expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataSchlecht(production_df, consumption_df, load_profile_df, date)
         st.subheader('Pessimistic Storage Prognosis')
         calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
+        calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'bad')
 
 #--------------------------------------------------------------------------
 # SCENARIOs STREAMLIT DISPLAY END

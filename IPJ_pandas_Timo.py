@@ -602,11 +602,11 @@ def capacity(verbrauch_df, erzeugung_df, prozent, start_capacity):
         return capacity_value, start_capacity,energieSurPlus
    
 
-# capacity_value, capacity_value_start,energieSurPlus = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
+capacity_value, capacity_value_start,energieSurPlus = capacity(verbrauch2030df, scaled_production_df, 0.8, 10000000)
 
-""" print('capacity value' + str(capacity_value))
+print('capacity value' + str(capacity_value))
 print('capacity_value_start' + str(capacity_value_start))
-print('energieSurPlus' + str(energieSurPlus)) """
+print('energieSurPlus' + str(energieSurPlus))
 
 
 #Evtuell auch gut geeignet
