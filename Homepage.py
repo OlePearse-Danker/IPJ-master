@@ -50,8 +50,6 @@ with tab1:
     )
 
     
-
-
     #Startzeit des Programms
     start_time = time.time()          
 
@@ -1451,7 +1449,7 @@ with tab2:
 
         # GOOD SCENARIO Function Call
         expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataGut(production_df, consumption_df, load_profile_df, date)
-        st.subheader('Optimistic Storage Prognosis')
+        st.subheader('Optimistic Storage Scenario')
         calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
         calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'good')
 
@@ -1465,7 +1463,7 @@ with tab2:
     with col3:
         # PESSIMISTIC SCENARIO Function Call
         expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataSchlecht(production_df, consumption_df, load_profile_df, date)
-        st.subheader('Pessimistic Storage Prognosis')
+        st.subheader('Pessimistic Storage Scenario')
         calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
         calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'bad')
 
@@ -1501,6 +1499,27 @@ with tab3:
 #--------------------------------------------------------------------------
 # LOAD PROFILE SCENARIOs STREAMLIT DISPLAY END
 #--------------------------------------------------------------------------
+#--------------------------------------------------------------------------
+# BUILD your Scenario BEGIN
+#--------------------------------------------------------------------------
+
+with tab4:
+
+    st.header("Build your own scenario")
+    st.write("This is our first approach to a scenario builder. With this tool you can build your own scenario, by changing the amount of heatpumps and see how the plots change. We are currently working on adding more customizable parameters.")
+    heatpump_selection_slider = st.slider('Choose the amount of heatpumps in 2030', 1500000, 4000000, 2500000)
+    st.write("You chose", heatpump_selection_slider, "for the amount of heat pumps in 2030")
+
+
+
+#--------------------------------------------------------------------------
+# BUILD your Scenario END
+#--------------------------------------------------------------------------
+
+
+
+
+
 
 #---------------------------------------------------------
 # STORAGE PRINT OUTS TIMO BEGIN
