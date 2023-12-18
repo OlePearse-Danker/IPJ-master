@@ -1299,26 +1299,25 @@ with tab2:
 
         st.subheader('Storage Capacity')
 
-        capacity_value_80, capacity_value_start_80,energieSurPlus_80  = capacity(expected_yearly_consumption, expected_yearly_production, 0.8, 10000000)
-        capacity_value_90, capacity_value_start_90,energieSurPlus_90 = capacity(expected_yearly_consumption, expected_yearly_production, 0.9, 10000000)
-        capacity_value_100, capacity_value_start_100,energieSurPlus_100 = capacity(expected_yearly_consumption, expected_yearly_production, 1, 10000000)
+        # acutal calculation
 
-        # scenario_to_plot = 'good'
+        # capacity_value_80, capacity_value_start_80,energieSurPlus_80  = capacity(expected_yearly_consumption, expected_yearly_production, 0.8, 10000000)
+        # capacity_value_90, capacity_value_start_90,energieSurPlus_90 = capacity(expected_yearly_consumption, expected_yearly_production, 0.9, 10000000)
+        # capacity_value_100, capacity_value_start_100,energieSurPlus_100 = capacity(expected_yearly_consumption, expected_yearly_production, 1, 10000000)
 
-        # if scenario_to_plot == 'good':
-        #     capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,11000000,0
-        #     capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,11000000,0
-        #     capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,13000000,0
-
-        # elif scenario_to_plot == 'mid':
-        #     capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,61000000,0
-        #     capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,108000000,0
-        #     capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,154000000,0
-
-        # elif scenario_to_plot == 'bad':
-        #     capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,171000000,0
-        #     capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,232000000,0
-        #     capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,295000000,0
+        # pre entered values for performance
+        if scenario_to_plot == 'good':
+            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,11000000,0
+            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,11000000,0
+            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,13000000,0
+        elif scenario_to_plot == 'mid':
+            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,0,0
+            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,0,0
+            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,0,0
+        elif scenario_to_plot == 'bad':
+            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,0,0
+            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,0,0
+            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,0,0
 
         print(capacity_value_start_80)
         print(capacity_value_start_90)
