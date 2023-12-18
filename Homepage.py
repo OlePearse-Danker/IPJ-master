@@ -13,7 +13,8 @@ from plotly.subplots import make_subplots
 
 
 st.set_page_config(
-    page_title="Homepage"
+    page_title="Homepage",
+    layout='wide'
 )
 st.sidebar.success("Select a page above.")  
 
@@ -26,7 +27,7 @@ st.divider()
 # tabs
 # --------------------
 
-tab1, tab2 = st.tabs(["As-Is-Analysis", "Prognosis"])
+tab1, tab2, tab3, tab4 = st.tabs(["As-Is-Analysis", "Preset Scenarios", "Load Profile Scenario", "Scenario Builder"])
 
 with tab1:
     st.header('Energy production and consumption')
@@ -500,7 +501,7 @@ with tab2:
 
         # Multiply all values (except 'Time') by 32*10^6
         cols_to_update = ['Weekday_Summer', 'Saturday_Summer', 'Sunday_Summer', 'Weekday_Winter', 'Saturday_Winter', 'Sunday_Winter']
-        load_profile_df[cols_to_update] = load_profile_df[cols_to_update].applymap(lambda x: x * 32 * 10**6)
+        load_profile_df[cols_to_update] = load_profile_df[cols_to_update].applymap(lambda x: x * 32 * 10**3)
         
         return load_profile_df
 
@@ -1243,12 +1244,6 @@ with tab2:
         print(f"Der Preis in Milliarden beträgt:{price}")
 
 
-
-    st.header('Storage Prognosis')
-
-    st.subheader('Storage Power')
-
-
     #----------------------------------
     # Power Calculation
 
@@ -1385,7 +1380,7 @@ with tab2:
     )
 
     # # Display the chart in Streamlit
-    st.plotly_chart(fig_4)
+    # st.plotly_chart(fig_4)
 
     # st.markdown("#### Choose your consumption scenario")
 
@@ -1459,8 +1454,6 @@ with tab2:
         st.subheader('Optimistic Storage Prognosis')
         calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
         calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'good')
-        # TEST with Good Scenario with load profile
-        # process_and_plot_2030_dataGut2(production_df, consumption_df, load_profile_df, date)
 
     with col2:
         # MEDIUM SCENARIO Function Call
@@ -1478,6 +1471,35 @@ with tab2:
 
 #--------------------------------------------------------------------------
 # SCENARIOs STREAMLIT DISPLAY END
+#--------------------------------------------------------------------------
+#--------------------------------------------------------------------------
+# LOAD PROFILE SCENARIOs STREAMLIT DISPLAY BEGIN
+#--------------------------------------------------------------------------
+with tab3:
+    start_date_load = datetime.date(2030, 1, 1)
+    end_date_load = datetime.date(2030, 12, 31)
+    default_date_load = datetime.date(2030, 1, 1)
+    st.write("##")
+    input_date_load = st.date_input(
+        "Select a Date",
+        value=default_date_load, 
+        min_value=start_date_load,
+        max_value=end_date_load,
+        format="DD.MM.YYYY",
+        key='date_input_load'  # Add a unique key argument
+    )
+    selected_date_load = pd.to_datetime(
+        input_date_load,
+        format="%d.%m.%Y",
+    )
+
+    date_load = selected_date_load
+
+    # TEST with Good Scenario with load profile
+    process_and_plot_2030_dataGut2(production_df, consumption_df, load_profile_df, date_load)
+
+#--------------------------------------------------------------------------
+# LOAD PROFILE SCENARIOs STREAMLIT DISPLAY END
 #--------------------------------------------------------------------------
 
 #---------------------------------------------------------
