@@ -504,6 +504,49 @@ with tab2:
         
         return load_profile_df
 
+    def consumption_with_load_profile(selected_consumption2030df, load_profile_df, selected_date):
+        # Convert selected_date to a datetime object
+        selected_date = pd.to_datetime(selected_date)
+
+        # Determine the season and day of the week
+        if selected_date.month >= 10 and selected_date.day >= 15 or selected_date.month <= 3 and selected_date.day <= 15:
+            season = 'Winter'
+        else:
+            season = 'Summer'
+
+        day_of_week = selected_date.day_name()
+
+        # Map the day of the week to the corresponding column in load_profile_df
+        if day_of_week == 'Sunday':
+            day_column = 'Sunday_' + season
+        elif day_of_week == 'Saturday':
+            day_column = 'Saturday_' + season
+        else:
+            day_column = 'Weekday_' + season
+
+        # Ensure both dataframes have the same index
+        load_profile_df = load_profile_df.set_index(selected_consumption2030df.index)
+
+        # Merge selected_consumption2030df with the correct column of load_profile_df
+        merged_df = selected_consumption2030df.merge(load_profile_df[[day_column]], left_index=True, right_index=True)
+
+        # Add the values in 'Verbrauch [MWh]' with the values in the day_column
+        merged_df['Verbrauch [MWh]'] = merged_df['Verbrauch [MWh]'] + merged_df[day_column]
+
+        # Drop the unnecessary columns
+        merged_df.drop(columns=[day_column], inplace=True)
+
+        return merged_df
+
+    def scale_2030_factors(df,windonshore_2030_factor,windoffshore_2030_factor, pv_2030_factor):
+        df_copy = df.copy()
+        df_copy[WIND_ONSHORE] *= windonshore_2030_factor
+        df_copy[WIND_OFFSHORE] *= windoffshore_2030_factor
+        df_copy[PHOTOVOLTAIC] *= pv_2030_factor
+        df_copy['Total Production'] = df_copy[[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE]].sum(axis=1)
+        return df_copy
+    
+
     def plot_renewable_percentage(scaled_production_df, verbrauch2030df):
         total_scaled_renewable_production = scaled_production_df[[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE]].sum(axis=1)
         total_consumption = verbrauch2030df['Verbrauch [MWh]']
@@ -599,15 +642,6 @@ with tab2:
         windonshore_2030_factor_2020_positive = 2.13589  # 
         windoffshore_2030_factor_2020_postive = 3.92721  #
         pv_2030_factor_2020_postive = 4.2361193  # assumig PV will increase by 423%
-
-        def scale_2030_factors(df,windonshore_2030_factor_2020_positive,windoffshore_2030_factor_2020_postive,
-                                            pv_2030_factor_2020_postive):
-            df_copy = df.copy()
-            df_copy[WIND_ONSHORE] *= windonshore_2030_factor_2020_positive
-            df_copy[WIND_OFFSHORE] *= windoffshore_2030_factor_2020_postive
-            df_copy[PHOTOVOLTAIC] *= pv_2030_factor_2020_postive
-            df_copy['Total Production'] = df_copy[[BIOMAS, HYDROELECTRIC, WIND_OFFSHORE, WIND_ONSHORE, PHOTOVOLTAIC, OTHER_RENEWABLE]].sum(axis=1)
-            return df_copy
 
         # Scale the data by the factors
         scaled_production_df = scale_2030_factors(prognoseErzeugung2030_positive_df, windonshore_2030_factor_2020_positive,windoffshore_2030_factor_2020_postive,
@@ -718,6 +752,121 @@ with tab2:
 
 #--------------------------------------------------------------------------
 # GOOD SCENARIO METHODS END
+#--------------------------------------------------------------------------
+#--------------------------------------------------------------------------
+# GOOD SCENARIO WITH LOAD PROFILE METHODS BEGIN
+#--------------------------------------------------------------------------
+
+    # Function to process and plot data for the year 2030
+    def process_and_plot_2030_dataGut2(production_df, consumption_df, load_profile_df, selected_date):
+        # Define constants
+        windonshore_2030_factor_2020_positive = 2.13589
+        windoffshore_2030_factor_2020_postive = 3.92721
+        pv_2030_factor_2020_postive = 4.2361193
+
+        # Process production data
+        production_2020df = production_df[production_df[DATE].dt.year == 2020]
+        prognoseErzeugung2030_positive_df = production_2020df.copy()
+        prognoseErzeugung2030_positive_df[DATE] = prognoseErzeugung2030_positive_df[DATE].map(
+            lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+        scaled_production_df = scale_2030_factors(prognoseErzeugung2030_positive_df, windonshore_2030_factor_2020_positive,windoffshore_2030_factor_2020_postive, pv_2030_factor_2020_postive)
+
+        # Process consumption data
+        verbrauch2030df = energyConsumption5(consumption_df)
+        selected_consumption2030df = verbrauch2030df[verbrauch2030df[DATE] == selected_date]
+
+        # Filter production data for the selected date
+        scaled_selected_production_df = scaled_production_df[scaled_production_df[DATE] == selected_date]
+
+        print("Bevor ")
+        print(selected_consumption2030df['Verbrauch [MWh]'])
+        a = consumption_with_load_profile(selected_consumption2030df, load_profile_df, selected_date)
+        print("Nach ")
+        print(a['Verbrauch [MWh]'])
+
+        # Plot data
+        plot_energy_data(a, scaled_selected_production_df, selected_date)
+        plot_renewable_percentage(scaled_production_df, verbrauch2030df)   
+    # Funktion zur Berechnung und Anzeige der aggregierten Daten pro Jahr
+
+    def energyConsumption5(consumption_df):
+        verbrauch2022df = consumption_df[consumption_df[DATE].dt.year == 2020]
+        prognose2030df = verbrauch2022df.copy()
+        faktor = faktorRechnung5(verbrauch2022df, eMobilität5())
+        print("Faktor: ", faktor)
+        prognose2030df[DATE] = prognose2030df[DATE].map(lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+        prognose2030df['Verbrauch [MWh]'] = prognose2030df[CONSUMPTION] * faktor
+        return prognose2030df
+
+    def wärmepumpe5():
+        highScenario = 500000
+        lowScenario = 236000
+        middleScenario = 368000
+        wärmepumpeAnzahl2030 = lowScenario * (2030 - 2023)  # 500k pro Jahr bis 2023
+
+        heizstunden = 2000
+        nennleistung = 15  # 15kW
+        luftWasserVerhältnis = 206 / 236
+        erdwärmeVerhältnis = 30 / 236
+        luftWasserJAZ = 3.1
+        erdwärmeJAZ = 4.1
+
+        # Berechnung der einzelnen Pumpe
+        luftWasserVerbrauch = wärmepumpeVerbrauchImJahr5(heizstunden, nennleistung, luftWasserJAZ)  # in kW/h
+        erdwärmeVerbrauch = wärmepumpeVerbrauchImJahr5(heizstunden, nennleistung, erdwärmeJAZ)  # in kW/h
+
+        luftWasserVerhältnisAnzahl = verhältnisAnzahl5(wärmepumpeAnzahl2030, luftWasserVerhältnis)
+        erdwärmeVerhältnisAnzahl = verhältnisAnzahl5(wärmepumpeAnzahl2030, erdwärmeVerhältnis)
+
+        return luftWasserVerbrauch * luftWasserVerhältnisAnzahl + erdwärmeVerbrauch * erdwärmeVerhältnisAnzahl  # kWh
+
+    # berechnung des Verbrauchs einer Wärmepumpe im Jahr
+    def wärmepumpeVerbrauchImJahr5(heizstunden, nennleistung, jaz): 
+        return (heizstunden * nennleistung) / jaz # (Heizstunden * Nennleistung) / JAZ = Stromverbrauch pro Jahr
+
+    def verhältnisAnzahl5(wärmepumpeAnzahl2030, verhältnis):
+        return wärmepumpeAnzahl2030 * verhältnis
+
+
+    def eMobilität5():
+        highECars = 15000000
+        lowECars = 8000000
+        middleECars = 11500000
+
+        eMobilität2030 = lowECars  # 15mio bis 20230
+        eMobilitätBisher = 1307901  # 1.3 mio
+        verbrauchPro100km = 21  # 21kWh
+        kilometerProJahr = 15000  # 15.000km
+
+        eMobilitätVerbrauch = (verbrauchPro100km / 100) * kilometerProJahr  # kWh
+
+        return (eMobilität2030 - eMobilitätBisher) * eMobilitätVerbrauch
+
+    def faktorRechnung5(verbrauch2022df, eMobilitätHochrechnung2030):
+        gesamtVerbrauch2022 = (otherFactors5(verbrauch2022df))*1000000000 + 504515946000 # mal1000 weil MWh -> kWh
+        return (gesamtVerbrauch2022  + eMobilitätHochrechnung2030) / (504515946000) #ges Verbrauch 2021
+
+    def prognoseRechnung5(verbrauch2022df, faktor):
+        verbrauch2030df = verbrauch2022df['Verbrauch [kWh]'] * faktor
+        return verbrauch2030df
+
+    def otherFactors5( verbrauch2022df):
+        #indHigh = (wärmepumpeHochrechnung2030*(1+3/7))*(72/26)
+        indLow = verbrauch2022df[CONSUMPTION].sum()*0.45*0.879/1000000
+        indMiddle = 0
+
+        # positive Faktoren
+        railway = 5  # TWh
+        powerNetLoss = 1
+        industry = indLow
+
+        # negative Faktoren
+        efficiency = 51
+        other = 6
+
+        return railway  + powerNetLoss - efficiency - other + industry/1000000000
+#--------------------------------------------------------------------------
+# GOOD SCENARIO WITH LOAD PROFILE METHODS END
 #--------------------------------------------------------------------------
 
 #--------------------------------------------------------------------------
@@ -1048,9 +1197,10 @@ with tab2:
         total_consumption = verbrauch_copy['Verbrauch [MWh]'].sum()
         total_production = erzeugung_copy['Total Production'].sum()
         
-        percentage = (total_consumption / total_production) * 100
+        percentage = (total_production / total_consumption)
         
         if percentage <= prozent:
+            percentage = percentage*100
             print(f"Die Erzeugung kann den angegebenen Verbrauch nicht decken ({percentage}%).")
             return 0, 0, 0
         else:
@@ -1149,26 +1299,26 @@ with tab2:
 
         st.subheader('Storage Capacity')
 
-        # capacity_value_80, capacity_value_start_80,energieSurPlus_80  = capacity(expected_yearly_consumption, expected_yearly_production, 0.8, 10000000)
-        # capacity_value_90, capacity_value_start_90,energieSurPlus_90 = capacity(expected_yearly_consumption, expected_yearly_production, 0.9, 10000000)
-        # capacity_value_100, capacity_value_start_100,energieSurPlus_100 = capacity(expected_yearly_consumption, expected_yearly_production, 1, 10000000)
+        capacity_value_80, capacity_value_start_80,energieSurPlus_80  = capacity(expected_yearly_consumption, expected_yearly_production, 0.8, 10000000)
+        capacity_value_90, capacity_value_start_90,energieSurPlus_90 = capacity(expected_yearly_consumption, expected_yearly_production, 0.9, 10000000)
+        capacity_value_100, capacity_value_start_100,energieSurPlus_100 = capacity(expected_yearly_consumption, expected_yearly_production, 1, 10000000)
 
         # scenario_to_plot = 'good'
 
-        if scenario_to_plot == 'good':
-            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,11000000,0
-            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,11000000,0
-            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,13000000,0
+        # if scenario_to_plot == 'good':
+        #     capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,11000000,0
+        #     capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,11000000,0
+        #     capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,13000000,0
 
-        elif scenario_to_plot == 'mid':
-            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,61000000,0
-            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,108000000,0
-            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,154000000,0
+        # elif scenario_to_plot == 'mid':
+        #     capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,61000000,0
+        #     capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,108000000,0
+        #     capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,154000000,0
 
-        elif scenario_to_plot == 'bad':
-            capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,171000000,0
-            capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,232000000,0
-            capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,295000000,0
+        # elif scenario_to_plot == 'bad':
+        #     capacity_value_80, capacity_value_start_80,energieSurPlus_80  = 0,171000000,0
+        #     capacity_value_90, capacity_value_start_90,energieSurPlus_90 = 0,232000000,0
+        #     capacity_value_100, capacity_value_start_100,energieSurPlus_100 = 0,295000000,0
 
         print(capacity_value_start_80)
         print(capacity_value_start_90)
@@ -1310,6 +1460,8 @@ with tab2:
         st.subheader('Optimistic Storage Prognosis')
         calculate_and_plot_power_storage_surplus(expected_yearly_production, expected_yearly_consumption)
         calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'good')
+        # TEST with Good Scenario with load profile
+        # process_and_plot_2030_dataGut2(production_df, consumption_df, load_profile_df, date)
 
     with col2:
         # MEDIUM SCENARIO Function Call
