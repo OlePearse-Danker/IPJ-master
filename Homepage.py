@@ -657,6 +657,39 @@ with tab2:
         plot_energy_data(selected_consumption2030df, scaled_selected_production_df, selected_date)
         plot_renewable_percentage(scaled_production_df, verbrauch2030df)
 
+        #------------------------------------
+        # TEST with yearly metrics
+
+        year = selected_date.year
+        
+        # Filter the production_df dataframe for the selected year
+        filtered_production_df = scaled_production_df[scaled_production_df[DATE].dt.year == year]
+        filtered_consumption_df = verbrauch2030df[verbrauch2030df[DATE].dt.year == year]
+
+        # Compute the total production for each renewable energy type
+        total_biomass = filtered_production_df[BIOMAS].sum()
+        total_waterpower = filtered_production_df[HYDROELECTRIC].sum()
+        total_windoff = filtered_production_df[WIND_OFFSHORE].sum()
+        total_windon = filtered_production_df[WIND_ONSHORE].sum()
+        total_pv = filtered_production_df[PHOTOVOLTAIC].sum()
+        total_other_ree = filtered_production_df[OTHER_RENEWABLE].sum()
+
+        # Calculate the sum of all the total values for the selected year
+        total_ree_sum = total_biomass + total_waterpower + total_windoff + total_windon + total_pv + total_other_ree
+        total_consumption_y = filtered_consumption_df[CONSUMPTION].sum()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(label='Total Renewable Energy Production (TWh)', value=f'{total_ree_sum * M_to_TWh:.2f}')
+        
+
+        with col2:
+            # st.metric(label='Total Consumption (TWh)', value=f'{total_consumption_y * M_to_TWh:.2f}')
+            st.metric(label='Total Consumption (TWh)', value=513.6)
+
+        #------------------------------------
+
         return scaled_production_df, verbrauch2030df
 
     # Funktion zur Berechnung und Anzeige der aggregierten Daten pro Jahr
@@ -735,7 +768,7 @@ with tab2:
 
     def otherFactors(wärmepumpeHochrechnung2030, verbrauch2022df):
         indHigh = (wärmepumpeHochrechnung2030*(1+3/7))*(72/26)
-        indLow = verbrauch2022df[CONSUMPTION].sum()*0.45*0.879/1000000
+        indLow = -verbrauch2022df[CONSUMPTION].sum()*1000*0.45*0.121
         indMiddle = 0
 
         # positive Faktoren
@@ -747,7 +780,7 @@ with tab2:
         efficiency = 51
         other = 6
 
-        return railway  + powerNetLoss - efficiency - other + industry/1000000000
+        return railway  + powerNetLoss - other + industry/1000000000
 
 #--------------------------------------------------------------------------
 # GOOD SCENARIO METHODS END
@@ -906,6 +939,39 @@ with tab2:
         plot_energy_data(selected_consumption2030df, scaled_selected_production_df, selected_date) # Plot the data
         plot_renewable_percentage(scaled_production_df, verbrauch2030df) # Plot the renewable percentage
 
+
+        #------------------------------------
+        # TEST with yearly metrics
+
+        year = selected_date.year
+        
+        # Filter the production_df dataframe for the selected year
+        filtered_production_df = scaled_production_df[scaled_production_df[DATE].dt.year == year]
+        filtered_consumption_df = verbrauch2030df[verbrauch2030df[DATE].dt.year == year]
+
+        # Compute the total production for each renewable energy type
+        total_biomass = filtered_production_df[BIOMAS].sum()
+        total_waterpower = filtered_production_df[HYDROELECTRIC].sum()
+        total_windoff = filtered_production_df[WIND_OFFSHORE].sum()
+        total_windon = filtered_production_df[WIND_ONSHORE].sum()
+        total_pv = filtered_production_df[PHOTOVOLTAIC].sum()
+        total_other_ree = filtered_production_df[OTHER_RENEWABLE].sum()
+
+        # Calculate the sum of all the total values for the selected year
+        total_ree_sum = total_biomass + total_waterpower + total_windoff + total_windon + total_pv + total_other_ree
+        total_consumption_y = filtered_consumption_df[CONSUMPTION].sum()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(label='Total Renewable Energy Production (TWh)', value=f'{total_ree_sum * M_to_TWh:.2f}')
+
+        with col2:
+            # st.metric(label='Total Consumption (TWh)', value=f'{total_consumption_y * M_to_TWh:.2f}')
+            st.metric(label='Total Consumption (TWh)', value=560.8)
+
+        #------------------------------------
+
         return scaled_production_df, verbrauch2030df
 
     # Funktion zur Berechnung und Anzeige der aggregierten Daten pro Jahr
@@ -988,10 +1054,9 @@ with tab2:
         industry = indMiddle
 
         # negative Faktoren
-        efficiency = 51
         other = 6
 
-        return railway  + powerNetLoss - efficiency - other + industry/1000000000
+        return railway  + powerNetLoss  - other + industry/1000000000
 
 #--------------------------------------------------------------------------
 # MEDIUM SCENARIO METHODS END
@@ -1033,6 +1098,39 @@ with tab2:
 
         plot_energy_data(selected_consumption2030df, scaled_selected_production_df, selected_date)
         plot_renewable_percentage(scaled_production_df, verbrauch2030df)
+
+
+        #------------------------------------
+        # TEST with yearly metrics
+
+        year = selected_date.year
+        
+        # Filter the production_df dataframe for the selected year
+        filtered_production_df = scaled_production_df[scaled_production_df[DATE].dt.year == year]
+        filtered_consumption_df = verbrauch2030df[verbrauch2030df[DATE].dt.year == year]
+
+        # Compute the total production for each renewable energy type
+        total_biomass = filtered_production_df[BIOMAS].sum()
+        total_waterpower = filtered_production_df[HYDROELECTRIC].sum()
+        total_windoff = filtered_production_df[WIND_OFFSHORE].sum()
+        total_windon = filtered_production_df[WIND_ONSHORE].sum()
+        total_pv = filtered_production_df[PHOTOVOLTAIC].sum()
+        total_other_ree = filtered_production_df[OTHER_RENEWABLE].sum()
+
+        # Calculate the sum of all the total values for the selected year
+        total_ree_sum = total_biomass + total_waterpower + total_windoff + total_windon + total_pv + total_other_ree
+        total_consumption_y = filtered_consumption_df[CONSUMPTION].sum()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(label='Total Renewable Energy Production (TWh)', value=f'{total_ree_sum * M_to_TWh:.2f}')
+
+        with col2:
+            # st.metric(label='Total Consumption (TWh)', value=f'{total_consumption_y * M_to_TWh:.2f}')
+            st.metric(label='Total Consumption (TWh)', value=659.3)
+
+        #------------------------------------
 
         return scaled_production_df, verbrauch2030df
 
@@ -1345,37 +1443,32 @@ with tab2:
 #--------------------------------------------------------------------------
 
 
-    # Consumption Forecast
-    st.header('Consumption Forecast')
-    st.write('In the following scenario, we assumed that the consumption will increase by 42.95 TWh compared to 2022 due to the electrification of the transport and heating sector.')
+    # assumptions = [
+    #     "Consumption of EVs",
+    #     "Consumption of heat pumps",
+    #     "Consumption of railway",
+    #     "Consumption of battery production and server rooms",
+    #     "Energy loss in the power grid",
+    #     "Efficiency of the power plants"
+    # ]
 
+    # delta_values = [
+    #     43.13, 
+    #     32.82,
+    #     5,
+    #     13,
+    #     -1,
+    #     -51
+    # ]
 
-    assumptions = [
-        "Consumption of EVs",
-        "Consumption of heat pumps",
-        "Consumption of railway",
-        "Consumption of battery production and server rooms",
-        "Energy loss in the power grid",
-        "Efficiency of the power plants"
-    ]
+    # colors = ['green' if delta > 0 else 'red' for delta in delta_values]
 
-    delta_values = [
-        43.13, 
-        32.82,
-        5,
-        13,
-        -1,
-        -51
-    ]
-
-    colors = ['green' if delta > 0 else 'red' for delta in delta_values]
-
-    fig_4 = go.Figure(data=go.Bar(x=assumptions, y=delta_values, marker=dict(color=colors)))
-    fig_4.update_layout(
-        title='Expected increase in consumption till 2030 compared to 2021',
-        xaxis=dict(title='Factors'),
-        yaxis=dict(title='Energy consumption in TWh'),
-    )
+    # fig_4 = go.Figure(data=go.Bar(x=assumptions, y=delta_values, marker=dict(color=colors)))
+    # fig_4.update_layout(
+    #     title='Expected increase in consumption till 2030 compared to 2021',
+    #     xaxis=dict(title='Factors'),
+    #     yaxis=dict(title='Energy consumption in TWh'),
+    # )
 
     # # Display the chart in Streamlit
     # st.plotly_chart(fig_4)
@@ -1391,22 +1484,73 @@ with tab2:
 
 
     # Display the metrics and delta values
-    st.subheader('Optimistic Scenario')
-    st.write('In the following scenario, we assumed that the expansion targets for wind and photovoltaic energy will be hit until 2030.')
+    st.header('Preset Scenarios')
+    st.write('On this page we gathered a preset optimistic, moderate and pessimistic scenario for the production, consumption and storage solutions in 2030.')
 
-    st.markdown('##### Expansion targets BWMK until 2030')
+    col1_in, col2_in, col3_in = st.columns(3)
+
+    with col1_in:
+
+        st.subheader('Optimistic Scenario')
+
+        st.markdown('##### Optimistic Production Assumptions')
+        
+        st.markdown("""
+                    * High generation
+                    * All expansion targets of the BMWK are being achieved
+                    * Good weather year for renewable energies (2020 scaled up)
+                    """)        
+
+        st.markdown('##### Optimistic Consumption Assumptions')
+
+        st.markdown("""
+                    * Low consumption
+                    * E-car and heat pump targets are not being met
+                    * Industrial consumption is declining
+                    """)
+
+    with col2_in:
+
+        st.subheader('Moderate Scenario')
+
+        st.markdown('##### Moderate Production Assumptions')
+
+        st.markdown("""
+                    * Reduced generation
+                    * Expansion estimate by the Frauenhofer Institute
+                    + Moderately good weather year for renewable energies (2022 scaled up)
+                    """)
+
+        st.markdown('##### Moderate Consumption Assumptions')
+
+        st.markdown("""
+                    * Average consumption​
+                    * Electric vehicle and heat pump targets are not fully achieved​t
+                    * Industrial consumption remains the same
+                    """)
+
+    with col3_in:
+
+        st.subheader('Pessimistic Scenario')
+
+        st.markdown('##### Pessimistic Production Assumptions')
+
+        st.markdown("""
+                    * Lower production
+                    * Expansion estimate by the Frauenhofer Institute1
+                    * Medium-good weather year for renewable energies (scaled up to 2022)
+                    * Same production scenario chosen (otherwise, production would be too low)
+                    """)
+
+        st.markdown('##### Pessimistic Consumption Assumptions')
+
+        st.markdown("""
+                    * High consumption
+                    * E-mobility and heat pump targets are being achieved
+                    * The share of industrial consumption compared to total consumption in Germany remains the same
+                    """)
 
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(label='Wind Onshore', value='115 GW')
-
-    with col2:
-        st.metric(label='Wind Offshore', value='30 GW')
-
-    with col3:
-        st.metric(label='Photovoltaic', value='215 GW')
 
     start_date = datetime.date(2030, 1, 1)
     end_date = datetime.date(2030, 12, 31)
@@ -1424,25 +1568,12 @@ with tab2:
         format="%d.%m.%Y",
     )
 
+
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        # st.write('In the following scenario, we assumed that the expansion targets for wind and photovoltaic energy will be hit until 2030.')
 
-        # st.markdown('##### Expansion targets BWMK until 2030')
-
-
-        # col1_in, col2_in, col3_in = st.columns(3)
-
-        # with col1_in:
-        #     st.metric(label='Wind Onshore', value='115 GW')
-
-        # with col2_in:
-        #     st.metric(label='Wind Offshore', value='30 GW')
-
-        # with col3_in:
-        #     st.metric(label='Photovoltaic', value='215 GW')
-
+        st.subheader('Optimistic Scenario')
         
         load_profile_df = read_load_profile('Lastprofile_SWKiel.xls')
         date = selected_date
@@ -1454,6 +1585,7 @@ with tab2:
         calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'good')
 
     with col2:
+        st.subheader('Medium Scenario')
         # MEDIUM SCENARIO Function Call
         expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataMi(production_df, consumption_df, load_profile_df, date)
         st.subheader('Medium Storage Scenario')
@@ -1461,6 +1593,7 @@ with tab2:
         calculate_and_plot_storage_capacity(expected_yearly_production, expected_yearly_consumption, 'mid')
 
     with col3:
+        st.subheader('Pessimistic Scenario')
         # PESSIMISTIC SCENARIO Function Call
         expected_yearly_production, expected_yearly_consumption = process_and_plot_2030_dataSchlecht(production_df, consumption_df, load_profile_df, date)
         st.subheader('Pessimistic Storage Scenario')
@@ -1515,9 +1648,6 @@ with tab4:
 #--------------------------------------------------------------------------
 # BUILD your Scenario END
 #--------------------------------------------------------------------------
-
-
-
 
 
 
