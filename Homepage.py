@@ -1607,6 +1607,10 @@ with tab2:
 # LOAD PROFILE SCENARIOs STREAMLIT DISPLAY BEGIN
 #--------------------------------------------------------------------------
 with tab3:
+
+    st.header('Load Profile Scenario')
+    st.write('In this scenario we used our preset optimistic scenario and added a heat pump load profile from the SWKiel GmbH, to make the scenario more realistic')
+
     start_date_load = datetime.date(2030, 1, 1)
     end_date_load = datetime.date(2030, 12, 31)
     default_date_load = datetime.date(2030, 1, 1)
