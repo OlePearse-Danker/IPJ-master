@@ -1494,7 +1494,7 @@ with tab2:
         st.subheader('Optimistic Scenario')
 
         st.markdown('##### Optimistic Production Assumptions')
-        
+
         st.markdown("""
                     * High generation
                     * All expansion targets of the BMWK are being achieved
@@ -1525,7 +1525,7 @@ with tab2:
 
         st.markdown("""
                     * Average consumption​
-                    * Electric vehicle and heat pump targets are not fully achieved​t
+                    * Electric vehicle and heat pump targets are not fully achieved​
                     * Industrial consumption remains the same
                     """)
 
@@ -1638,10 +1638,196 @@ with tab3:
 
 with tab4:
 
+    def process_and_plot_2030_dataGut_IND(production_df, consumption_df, load_profile_df, selected_date, heatpumpamount,evamount):
+        
+        # POSITIVE SCENARIO Production based on 2020 and BMWK goals
+        production_2020df = production_df[production_df[DATE].dt.year == 2020]
+        prognoseErzeugung2030_positive_df = production_2020df.copy()
+        #prognoseErzeugung2030_positive_df['Date'] = prognoseErzeugung2030_positive_df['Date'].map(lambda x: x.replace(year=2030))
+        prognoseErzeugung2030_positive_df[DATE] = prognoseErzeugung2030_positive_df[DATE].map(
+        lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+
+        windonshore_2030_factor_2020_positive = 2.13589  # 
+        windoffshore_2030_factor_2020_postive = 3.92721  #
+        pv_2030_factor_2020_postive = 4.2361193  # assumig PV will increase by 423%
+
+        # Scale the data by the factors
+        scaled_production_df = scale_2030_factors(prognoseErzeugung2030_positive_df, windonshore_2030_factor_2020_positive,windoffshore_2030_factor_2020_postive,
+                                            pv_2030_factor_2020_postive)
+
+        # Filter the data for the selected date
+        scaled_selected_production_df = scaled_production_df[scaled_production_df[DATE] == selected_date]
+
+        verbrauch2030df = energyConsumption_IND(consumption_df, heatpumpamount,evamount)
+
+        print("+++++++++++++++++++++++++++")
+        print("Verbrauch 2030:", verbrauch2030df['Verbrauch [MWh]'].sum()/1000 , "TWhhusp\n")
+        print("+++++++++++++++++++++++++++")
+
+                #------------------------------------
+        # TEST with yearly metrics
+
+        year = selected_date.year
+        
+        # Filter the production_df dataframe for the selected year
+        filtered_production_df = scaled_production_df[scaled_production_df[DATE].dt.year == 2030]
+        filtered_consumption_df = verbrauch2030df[verbrauch2030df[DATE].dt.year == 2030]
+
+        # Compute the total production for each renewable energy type
+        total_biomass = filtered_production_df[BIOMAS].sum()
+        total_waterpower = filtered_production_df[HYDROELECTRIC].sum()
+        total_windoff = filtered_production_df[WIND_OFFSHORE].sum()
+        total_windon = filtered_production_df[WIND_ONSHORE].sum()
+        total_pv = filtered_production_df[PHOTOVOLTAIC].sum()
+        total_other_ree = filtered_production_df[OTHER_RENEWABLE].sum()
+
+        # Calculate the sum of all the total values for the selected year
+        total_ree_sum = total_biomass + total_waterpower + total_windoff + total_windon + total_pv + total_other_ree
+        total_consumption_y = filtered_consumption_df[CONSUMPTION].sum()
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(label='Total Renewable Energy Production (TWh)', value=f'{total_ree_sum * M_to_TWh:.2f}')
+        
+
+        with col2:
+            st.metric(label='Total Consumption (TWh)', value=f"{verbrauch2030df['Verbrauch [MWh]'].sum() * M_to_TWh:.2f}")
+
+        #------------------------------------
+
+        selected_consumption2030df = verbrauch2030df[verbrauch2030df[DATE] == selected_date]
+        scaled_selected_production_df = scaled_selected_production_df[scaled_selected_production_df[DATE] == selected_date]
+
+        plot_energy_data(selected_consumption2030df, scaled_selected_production_df, selected_date)
+        plot_renewable_percentage(scaled_production_df, verbrauch2030df)
+
+
+        return scaled_production_df, verbrauch2030df
+
+    # Funktion zur Berechnung und Anzeige der aggregierten Daten pro Jahr
+    # Author: Bjarne, Noah
+    def energyConsumption_IND(consumption_df, heatpumpamount, evamount):
+        wärmepumpeHochrechnung2030 = wärmepumpe_IND(heatpumpamount)
+        eMobilitätHochrechnung2030 = eMobilität_IND(evamount)
+
+        verbrauch2022df = consumption_df[consumption_df[DATE].dt.year == 2020]
+        prognose2030df = verbrauch2022df.copy()
+        faktor = faktorRechnung(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030)
+        print("Verbr df:", prognose2030df)
+        print("Faktor: ", faktor)
+        # Change the year in 'Datum' column to 2030
+        prognose2030df[DATE] = prognose2030df[DATE].map(lambda x: x.replace(year=2030) if not (x.month == 2 and x.day == 29) else x.replace(month=2, day=28, year=2030))
+
+        prognose2030df['Verbrauch [MWh]'] = prognose2030df[CONSUMPTION] * faktor
+
+        combined_df = pd.concat([verbrauch2022df[[STARTTIME, CONSUMPTION]], prognose2030df[['Verbrauch [MWh]']]], axis=1)
+        print("Verbrauch 2030:", prognose2030df['Verbrauch [MWh]'].sum()/1000 , "TWhhusp\n")
+        print("Consumption 2022:", prognose2030df[CONSUMPTION].sum()/1000 , "TWh\n")
+
+        return prognose2030df
+
+    def wärmepumpe_IND(heatpumpamount):
+        highScenario = 500000
+        lowScenario = 236000
+        middleScenario = 368000
+        wärmepumpeAnzahl2030 = heatpumpamount
+
+        heizstunden = 2000
+        nennleistung = 15  # 15kW
+        luftWasserVerhältnis = 206 / 236
+        erdwärmeVerhältnis = 30 / 236
+        luftWasserJAZ = 3.1
+        erdwärmeJAZ = 4.1
+
+        # Berechnung der einzelnen Pumpe
+        luftWasserVerbrauch = wärmepumpeVerbrauchImJahr(heizstunden, nennleistung, luftWasserJAZ)  # in kW/h
+        erdwärmeVerbrauch = wärmepumpeVerbrauchImJahr(heizstunden, nennleistung, erdwärmeJAZ)  # in kW/h
+
+        luftWasserVerhältnisAnzahl = verhältnisAnzahl(wärmepumpeAnzahl2030, luftWasserVerhältnis)
+        erdwärmeVerhältnisAnzahl = verhältnisAnzahl(wärmepumpeAnzahl2030, erdwärmeVerhältnis)
+
+        return luftWasserVerbrauch * luftWasserVerhältnisAnzahl + erdwärmeVerbrauch * erdwärmeVerhältnisAnzahl  # kWh
+
+    # berechnung des Verbrauchs einer Wärmepumpe im Jahr
+    def wärmepumpeVerbrauchImJahr_IND(heizstunden, nennleistung, jaz): 
+        return (heizstunden * nennleistung) / jaz # (Heizstunden * Nennleistung) / JAZ = Stromverbrauch pro Jahr
+
+    def verhältnisAnzahl_IND(wärmepumpeAnzahl2030, verhältnis):
+        return wärmepumpeAnzahl2030 * verhältnis
+
+
+    def eMobilität_IND(evamount):
+        highECars = 15000000
+        lowECars = 8000000
+        middleECars = 11500000
+
+        eMobilität2030 = evamount  # 15mio bis 20230
+        eMobilitätBisher = 1307901  # 1.3 mio
+        verbrauchPro100km = 21  # 21kWh
+        kilometerProJahr = 15000  # 15.000km
+
+        eMobilitätVerbrauch = (verbrauchPro100km / 100) * kilometerProJahr  # kWh
+
+        return (eMobilität2030 - eMobilitätBisher) * eMobilitätVerbrauch
+
+    def faktorRechnung_IND(verbrauch2022df, wärmepumpeHochrechnung2030, eMobilitätHochrechnung2030):
+        gesamtVerbrauch2022 = (otherFactors(wärmepumpeHochrechnung2030, verbrauch2022df))*1000000000 + 504515946000 # mal1000 weil MWh -> kWh
+        return (gesamtVerbrauch2022 + wärmepumpeHochrechnung2030 + eMobilitätHochrechnung2030) / (504515946000) #ges Verbrauch 2021
+
+    def prognoseRechnung_IND(verbrauch2022df, faktor):
+        verbrauch2030df = verbrauch2022df['Verbrauch [kWh]'] * faktor
+        return verbrauch2030df
+
+    def otherFactors_IND(wärmepumpeHochrechnung2030, verbrauch2022df):
+        indHigh = (wärmepumpeHochrechnung2030*(1+3/7))*(72/26)
+        indLow = -verbrauch2022df[CONSUMPTION].sum()*1000*0.45*0.121
+        indMiddle = 0
+
+        # positive Faktoren
+        railway = 5  # TWh
+        powerNetLoss = 1
+        industry = indLow
+
+        # negative Faktoren
+        efficiency = 51
+        other = 6
+
+        return railway  + powerNetLoss - other + industry/1000000000
+
+
     st.header("Build your own scenario")
-    st.write("This is our first approach to a scenario builder. With this tool you can build your own scenario, by changing the amount of heatpumps and see how the plots change. We are currently working on adding more customizable parameters.")
+    st.write("This is our first approach to a scenario builder. With this tool you can build your own scenario, by changing the amount of heatpumps and EVs in 2030 and see how the plots change. We are currently working on adding more customizable parameters.")
+
+    st.markdown('#### Choose the amount of heatpumps in 2030')
     heatpump_selection_slider = st.slider('Choose the amount of heatpumps in 2030', 1500000, 4000000, 2500000)
     st.write("You chose", heatpump_selection_slider, "for the amount of heat pumps in 2030")
+
+    st.markdown('#### Choose the amount of EVs in 2030')
+    ev_selection_slider = st.slider('Choose the amount of EVs in 2030', 5000000, 20000000, 11000000)
+    st.write("You chose", ev_selection_slider, "for the amount of heat pumps in 2030")
+
+    start_date_load = datetime.date(2030, 1, 1)
+    end_date_load = datetime.date(2030, 12, 31)
+    default_date_load = datetime.date(2030, 1, 1)
+    st.write("##")
+    input_date_load = st.date_input(
+        "Select a Date",
+        value=default_date_load, 
+        min_value=start_date_load,
+        max_value=end_date_load,
+        format="DD.MM.YYYY",
+        key='date_input_ind'  # Add a unique key argument
+    )
+    selected_date_load = pd.to_datetime(
+        input_date_load,
+        format="%d.%m.%Y",
+    )
+
+    date_ind = date
+
+    if st.button('Process and Plot'):
+        process_and_plot_2030_dataGut_IND(production_df, consumption_df, load_profile_df, selected_date_load, heatpump_selection_slider, ev_selection_slider)
 
 
 
